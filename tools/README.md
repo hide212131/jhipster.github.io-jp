@@ -47,6 +47,14 @@ python3 apply_changes.py target.md diff.json --skip-minor --no-backup
 python3 test_diff_system.py
 ```
 
+### demo_workflow.py
+完全なワークフローのデモンストレーションを実行します。
+
+**使用例:**
+```bash
+python3 demo_workflow.py
+```
+
 ## 実装済み機能
 
 - ✅ difflib.SequenceMatcherによる差分検出
@@ -54,7 +62,8 @@ python3 test_diff_system.py
 - ✅ 軽微変更判定（空白・句読点のみ、トークン数ベース）
 - ✅ 差分適用機能
 - ✅ テストフィクスチャとテストスイート
-- ⚠️ Gemini AI意味変化判定（プレースホルダー実装）
+- ✅ ヒューリスティック意味変化判定
+- ✅ Gemini AI意味変化判定（テンプレート実装）
 
 ## 軽微変更判定ロジック
 
@@ -63,6 +72,16 @@ python3 test_diff_system.py
 1. **空白・句読点のみの変更**: 英数字・ひらがな・カタカナ・漢字以外の文字を除去して比較し、同じ内容
 2. **トークン数の類似**: 単語トークン数の差が10%以内
 
+## 意味変化判定ロジック
+
+### ヒューリスティック判定（標準）
+- 文字数変化が50%以上: 意味変化あり
+- 単語数変化が30%以上: 意味変化あり
+- 空文字列との比較: 意味変化あり
+
+### Gemini AI判定（オプション）
+環境変数 `GEMINI_API_KEY` を設定すると、Gemini AIによる高精度な意味変化判定が利用可能になります。
+
 ## ファイル構成
 
 ```
@@ -70,18 +89,74 @@ tools/
 ├── discover_changes.py     # 差分検出メインスクリプト
 ├── apply_changes.py        # 差分適用メインスクリプト
 ├── test_diff_system.py     # テストスイート
+├── demo_workflow.py        # ワークフローデモ
+├── gemini_integration.py   # Gemini API統合例
 └── README.md              # このファイル
 ```
 
-## 今後の拡張予定
+## クイックスタート
 
-- Gemini API統合による実際の意味変化判定
-- より高度な軽微変更判定ロジック
-- バッチ処理機能
-- GUI インターフェース
+1. **差分検出とプレビュー:**
+   ```bash
+   python3 discover_changes.py original.md translation.md
+   ```
+
+2. **軽微変更をスキップして差分検出:**
+   ```bash
+   python3 discover_changes.py original.md translation.md --skip-minor
+   ```
+
+3. **差分を適用:**
+   ```bash
+   python3 discover_changes.py original.md translation.md -o changes.json
+   python3 apply_changes.py translation.md changes.json
+   ```
+
+4. **テスト実行:**
+   ```bash
+   python3 test_diff_system.py
+   ```
+
+5. **デモ実行:**
+   ```bash
+   python3 demo_workflow.py
+   ```
+
+## 実用的なワークフロー例
+
+### 日常的な翻訳更新
+```bash
+# 1. upstream英語版との差分を検出
+python3 discover_changes.py upstream/english.md current/japanese.md -o changes.json --skip-minor
+
+# 2. 意味変化のある部分のみを適用
+python3 apply_changes.py current/japanese.md changes.json --skip-no-semantic
+
+# 3. 結果を確認
+git diff current/japanese.md
+```
+
+### Gemini AIを使用した高精度判定
+```bash
+export GEMINI_API_KEY="your-api-key-here"
+python3 discover_changes.py upstream/english.md current/japanese.md --api-key $GEMINI_API_KEY
+```
 
 ## 注意事項
 
 - ファイルはUTF-8エンコーディングで処理されます
 - バックアップファイルは自動的に作成されます（--no-backupで無効化可能）
 - Gemini API使用時は適切なAPIキーが必要です
+- 大きなファイルの処理には時間がかかる場合があります
+
+## トラブルシューティング
+
+### よくある問題
+1. **エンコーディングエラー**: ファイルがUTF-8でない場合は事前に変換してください
+2. **権限エラー**: スクリプトに実行権限があることを確認してください
+3. **APIキーエラー**: Gemini API使用時は有効なAPIキーを設定してください
+
+### ログレベルの調整
+```bash
+python3 discover_changes.py --help  # 使用可能なオプションを確認
+```
