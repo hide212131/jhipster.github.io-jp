@@ -31,3 +31,11 @@ nbproject/
 # Auto-translation Python cache
 .github/auto-translation/__pycache__/
 .github/auto-translation/**/__pycache__/
+
+# Tools Python cache
+tools/__pycache__/
+tools/tests/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
