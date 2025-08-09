@@ -1,0 +1,213 @@
+name: Sync and Translation Pipeline
+
+on:
+  schedule:
+    # Run every Monday at 01:00 UTC (10:00 JST)
+    - cron: '0 1 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (generate PR template only)'
+        required: false
+        default: 'true'
+        type: boolean
+      force_sync:
+        description: 'Force sync even with safety guards (use with caution)'
+        required: false
+        default: 'false'  
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  sync:
+    name: Synchronization and Translation
+    runs-on: ubuntu-latest
+    
+    # Permissions required for the workflow
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      
+    steps:
+    - name: Repository Information
+      run: |
+        echo "Repository: ${{ github.repository }}"
+        echo "Event: ${{ github.event_name }}"
+        echo "Ref: ${{ github.ref }}"
+        echo "Actor: ${{ github.actor }}"
+        echo "Is fork: ${{ github.repository != 'jhipster/jhipster.github.io' }}"
+        
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Add any required dependencies here
+        pip install requests
+        
+    - name: Configure Git
+      run: |
+        git config --global user.name 'JHipster JP Sync Bot'
+        git config --global user.email 'noreply@jhipster.tech'
+        
+    - name: Add upstream remote
+      run: |
+        git remote add upstream https://github.com/jhipster/jhipster.github.io.git || true
+        git fetch upstream
+        
+    - name: Environment Check
+      id: env_check
+      run: |
+        echo "=== Environment Check ==="
+        
+        # Check if we have required secrets
+        if [ -z "${{ secrets.GEMINI_API_KEY }}" ]; then
+          echo "gemini_available=false" >> $GITHUB_OUTPUT
+          echo "WARNING: GEMINI_API_KEY not available - translation features will be limited"
+        else
+          echo "gemini_available=true" >> $GITHUB_OUTPUT
+          echo "GEMINI_API_KEY available"
+        fi
+        
+        if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
+          echo "github_token_available=false" >> $GITHUB_OUTPUT
+          echo "ERROR: GITHUB_TOKEN not available"
+          exit 1
+        else
+          echo "github_token_available=true" >> $GITHUB_OUTPUT
+          echo "GITHUB_TOKEN available"
+        fi
+        
+        # Determine run mode
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "run_mode=dry-run" >> $GITHUB_OUTPUT
+          else
+            echo "run_mode=sync" >> $GITHUB_OUTPUT
+          fi
+        else
+          # For scheduled runs, default to dry-run for safety
+          echo "run_mode=dry-run" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "Run mode: $(echo $run_mode)"
+        
+    - name: Safety Guard Check
+      id: safety_check
+      run: |
+        echo "=== Safety Guard Check ==="
+        
+        # Check repository type
+        if [ "${{ github.repository }}" = "jhipster/jhipster.github.io" ]; then
+          echo "ERROR: This workflow should not run on the main upstream repository"
+          echo "safety_check=failed" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+        
+        # Check event type and repository combination
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "ERROR: Sync operations are disabled for pull request events"
+          echo "safety_check=failed" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+        
+        # Check for force override
+        if [ "${{ github.event.inputs.force_sync }}" = "true" ]; then
+          echo "WARNING: Force sync enabled - bypassing some safety checks"
+          echo "force_enabled=true" >> $GITHUB_OUTPUT
+        else
+          echo "force_enabled=false" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "safety_check=passed" >> $GITHUB_OUTPUT
+        echo "Safety checks passed"
+        
+    - name: Run Sync Tool (Dry Run)
+      if: steps.env_check.outputs.run_mode == 'dry-run'
+      run: |
+        echo "=== Running Sync Tool (Dry Run Mode) ==="
+        python tools/run_sync.py --dry-run --verbose
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        
+    - name: Upload Dry Run Results
+      if: steps.env_check.outputs.run_mode == 'dry-run'
+      uses: actions/upload-artifact@v3
+      with:
+        name: sync-dry-run-results
+        path: |
+          sync_pr_template.md
+        retention-days: 30
+        
+    - name: Run Sync Tool (Actual Sync)
+      if: steps.env_check.outputs.run_mode == 'sync'
+      run: |
+        echo "=== Running Sync Tool (Actual Sync Mode) ==="
+        python tools/run_sync.py --verbose
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        
+    - name: Create Pull Request (if changes detected)
+      if: steps.env_check.outputs.run_mode == 'sync' && steps.safety_check.outputs.safety_check == 'passed'
+      run: |
+        echo "=== Checking for changes and creating PR ==="
+        
+        # Check if there are any changes
+        if git diff --quiet HEAD; then
+          echo "No changes detected, skipping PR creation"
+          exit 0
+        fi
+        
+        # Create a new branch for the sync
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        BRANCH_NAME="sync/auto-sync-$TIMESTAMP"
+        
+        git checkout -b "$BRANCH_NAME"
+        git add .
+        git commit -m "自動同期: $(date '+%Y-%m-%d %H:%M:%S')"
+        git push origin "$BRANCH_NAME"
+        
+        # Create PR using GitHub CLI
+        gh pr create \
+          --title "🔄 自動同期・翻訳 ($TIMESTAMP)" \
+          --body-file sync_pr_template.md \
+          --base main \
+          --head "$BRANCH_NAME" \
+          --label "sync" \
+          --label "translation"
+          
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Summary
+      if: always()
+      run: |
+        echo "=== Workflow Summary ==="
+        echo "Repository: ${{ github.repository }}"
+        echo "Event: ${{ github.event_name }}"
+        echo "Run mode: ${{ steps.env_check.outputs.run_mode }}"
+        echo "Safety check: ${{ steps.safety_check.outputs.safety_check }}"
+        echo "GEMINI available: ${{ steps.env_check.outputs.gemini_available }}"
+        echo "GitHub token available: ${{ steps.env_check.outputs.github_token_available }}"
+        
+        if [ -f sync_pr_template.md ]; then
+          echo "PR template generated successfully"
+        fi
