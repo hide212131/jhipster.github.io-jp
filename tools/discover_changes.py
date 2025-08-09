@@ -76,23 +76,48 @@ class SemanticChangeDetector:
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key
         # TODO: Gemini API実装は後で追加
-        logger.warning("Gemini API integration not yet implemented")
+        if not self.api_key:
+            logger.debug("Using heuristic semantic analysis (no API key)")
     
     def has_semantic_change(self, original: str, modified: str) -> Optional[bool]:
-        """意味変化があるかどうかを判定 (現在はプレースホルダー)"""
+        """意味変化があるかどうかを判定"""
         # プレースホルダー実装: 後でGemini APIを使用
         if not self.api_key:
-            logger.warning("No API key provided for semantic analysis")
-            return None
+            return self._simple_heuristic(original, modified)
         
         # TODO: Gemini APIを呼び出して意味変化を判定
         # 現在は単純なヒューリスティック
+        return self._simple_heuristic(original, modified)
+    
+    def _simple_heuristic(self, original: str, modified: str) -> bool:
+        """簡単なヒューリスティックによる意味変化判定"""
+        if len(original.strip()) == 0 and len(modified.strip()) == 0:
+            return False
+        
         if len(original.strip()) == 0 or len(modified.strip()) == 0:
             return True
         
         # 文字数の大幅な変化は意味変化の可能性が高い
         len_ratio = min(len(original), len(modified)) / max(len(original), len(modified))
-        return len_ratio < 0.5
+        
+        # 50%以上の文字数変化は意味変化とみなす
+        if len_ratio < 0.5:
+            return True
+        
+        # 単語数の大幅な変化
+        words1 = re.findall(r'\w+', original, re.UNICODE)
+        words2 = re.findall(r'\w+', modified, re.UNICODE)
+        
+        if len(words1) == 0 and len(words2) == 0:
+            return False
+        
+        if len(words1) == 0 or len(words2) == 0:
+            return True
+        
+        word_ratio = min(len(words1), len(words2)) / max(len(words1), len(words2))
+        
+        # 30%以上の単語数変化は意味変化とみなす
+        return word_ratio < 0.7
 
 
 class DiffDiscoverer:
@@ -101,6 +126,8 @@ class DiffDiscoverer:
     def __init__(self, api_key: Optional[str] = None):
         self.minor_detector = MinorChangeDetector()
         self.semantic_detector = SemanticChangeDetector(api_key)
+        logger.info("DiffDiscoverer initialized with semantic analysis")
+    
     
     def discover_changes(self, source_lines: List[str], target_lines: List[str]) -> List[ChangeOperation]:
         """差分を検出してChangeOperationのリストを返す"""

@@ -15,3 +15,9 @@ Gemfile.lock
 
 # VSCode
 .vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
