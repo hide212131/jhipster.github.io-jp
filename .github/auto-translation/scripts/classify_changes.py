@@ -82,10 +82,6 @@ class ChangeClassifier:
         if filepath.startswith('.'):
             return False
         
-        # ルート直下のファイルを除外（サブディレクトリ内のファイルのみ翻訳対象）
-        if '/' not in filepath:
-            return False
-        
         # 拡張子チェック
         if path.suffix.lower() in self.translatable_extensions:
             return True

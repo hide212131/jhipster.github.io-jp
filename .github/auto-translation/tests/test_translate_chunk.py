@@ -159,8 +159,8 @@ This is JHipster v8.7.0 release notes.
     @patch.object(GeminiTranslator, 'translate_chunk')
     def test_translate_file(self, mock_translate_chunk):
         """ファイル翻訳のテスト"""
-        # モックの設定
-        mock_translate_chunk.return_value = "これはテスト文書です。"
+        # モックの設定 - 各チャンクで異なる翻訳を返す
+        mock_translate_chunk.side_effect = ["# テスト文書", "これはテスト文書です。"]
         
         # テスト用の一時ファイルを作成
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
@@ -181,7 +181,8 @@ This is JHipster v8.7.0 release notes.
             with open(test_file, 'r', encoding='utf-8') as f:
                 translated_content = f.read()
             
-            self.assertEqual(translated_content, "これはテスト文書です。")
+            # 複数チャンクの翻訳結果が結合されていることを確認
+            self.assertEqual(translated_content, "# テスト文書\n\nこれはテスト文書です。")
             
         finally:
             os.unlink(test_file)

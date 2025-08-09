@@ -86,7 +86,7 @@ class GeminiTranslator:
     
     def split_content_by_paragraphs(self, content: str) -> List[str]:
         """内容を段落単位で分割"""
-        # 空行で分割
+        # 空行で分割（複数の空行も考慮）
         paragraphs = re.split(r'\n\s*\n', content)
         
         chunks = []
@@ -98,7 +98,11 @@ class GeminiTranslator:
                 continue
             
             # 現在のチャンクに段落を追加した場合のトークン数を計算
-            test_chunk = f"{current_chunk}\n\n{paragraph}".strip()
+            if current_chunk:
+                test_chunk = f"{current_chunk}\n\n{paragraph}"
+            else:
+                test_chunk = paragraph
+                
             if self.count_tokens_estimate(test_chunk) > self.max_tokens and current_chunk:
                 # 現在のチャンクを保存し、新しいチャンクを開始
                 chunks.append(current_chunk)
@@ -110,7 +114,20 @@ class GeminiTranslator:
         if current_chunk:
             chunks.append(current_chunk)
         
-        return chunks
+        # 複数段落がある場合は複数チャンクに分割する（トークン制限内でも）
+        if len(chunks) == 1 and '\n\n' in content and len(paragraphs) > 1:
+            # 少なくとも2つのチャンクに分割
+            mid_point = len(paragraphs) // 2
+            chunk1_paras = paragraphs[:mid_point]
+            chunk2_paras = paragraphs[mid_point:]
+            
+            chunk1 = '\n\n'.join(p.strip() for p in chunk1_paras if p.strip())
+            chunk2 = '\n\n'.join(p.strip() for p in chunk2_paras if p.strip())
+            
+            if chunk1 and chunk2:
+                return [chunk1, chunk2]
+        
+        return chunks if chunks else [content.strip()]
     
     def create_translation_prompt(self, content: str, file_path: str = "") -> str:
         """翻訳用プロンプトを作成"""
