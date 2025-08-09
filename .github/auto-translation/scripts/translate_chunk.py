@@ -14,6 +14,12 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import google.generativeai as genai
+import sys
+from pathlib import Path
+
+# ツールモジュールのパスを追加
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from tools import create_gemini_client, get_gemini_config, get_translation_config
 
 
 def find_project_root() -> Path:
@@ -27,16 +33,40 @@ def find_project_root() -> Path:
 
 
 class GeminiTranslator:
-    def __init__(self, api_key: str, model_name: str = "gemini-1.5-flash"):
-        self.api_key = api_key
-        self.model_name = model_name
-        self.max_tokens = 4096
+    def __init__(self, api_key: str = None, model_name: str = "gemini-1.5-flash", use_new_llm: bool = True):
+        # 新しいLLM層を使用するかどうか
+        self.use_new_llm = use_new_llm
+        
+        if self.use_new_llm:
+            # 新しいLLM層を使用
+            if api_key:
+                os.environ.setdefault('GEMINI_API_KEY', api_key)
+            try:
+                self.gemini_config = get_gemini_config()
+                self.translation_config = get_translation_config()
+                self.llm_client = create_gemini_client(self.gemini_config)
+                self.api_key = self.gemini_config.api_key
+                self.model_name = model_name or self.gemini_config.default_model
+                self.max_tokens = self.translation_config.max_tokens_per_chunk
+                print(f"✅ Using new LLM layer with rate control and model switching")
+            except Exception as e:
+                print(f"⚠️ Failed to initialize new LLM layer: {e}")
+                print("Falling back to legacy implementation")
+                self.use_new_llm = False
+        
+        if not self.use_new_llm:
+            # 従来の実装（後方互換性）
+            self.api_key = api_key or os.environ.get('GEMINI_API_KEY')
+            if not self.api_key:
+                raise ValueError("GEMINI_API_KEY is required")
+            self.model_name = model_name
+            self.max_tokens = 4096
+            genai.configure(api_key=self.api_key)
+            self.model = genai.GenerativeModel(model_name)
+            print(f"✅ Using legacy Gemini implementation")
+        
         self.style_guide_content = ""
         self.project_root = find_project_root()
-        
-        # Gemini APIを設定
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model_name)
         
         # スタイルガイドを読み込み
         self.load_style_guide()
@@ -225,43 +255,70 @@ class GeminiTranslator:
         """2段階でコンフリクト翻訳"""
         print("   Using 2-stage conflict resolution...")
         
-        # 第1段階：英文翻訳（マーカー保持）
-        stage1_prompt = self.create_conflict_translation_prompt(content, "translate", file_path)
-        stage1_result = None
-        
-        for attempt in range(retry_count):
+        if self.use_new_llm:
+            # 新しいLLM層を使用
             try:
-                response = self.model.generate_content(stage1_prompt)
-                if response.text:
-                    stage1_result = response.text.strip()
-                    print(f"   Stage 1 completed (attempt {attempt + 1})")
-                    break
-            except Exception as e:
-                print(f"   Stage 1 attempt {attempt + 1} failed: {e}")
-                if attempt < retry_count - 1:
-                    time.sleep(2 ** attempt)
-        
-        if not stage1_result:
-            print("   Stage 1 failed completely")
-            return None
-        
-        # 第2段階：マージ（マーカー削除）
-        stage2_prompt = self.create_conflict_translation_prompt(stage1_result, "merge", file_path)
-        
-        for attempt in range(retry_count):
-            try:
-                response = self.model.generate_content(stage2_prompt)
-                if response.text:
-                    final_result = response.text.strip()
-                    print(f"   Stage 2 completed (attempt {attempt + 1})")
+                # 第1段階：英文翻訳（マーカー保持）
+                stage1_prompt = self.create_conflict_translation_prompt(content, "translate", file_path)
+                stage1_result = self.llm_client.generate_content(stage1_prompt, content)
+                
+                if not stage1_result:
+                    print("   Stage 1 failed")
+                    return None
+                print("   Stage 1 completed")
+                
+                # 第2段階：マージ（マーカー削除）
+                stage2_prompt = self.create_conflict_translation_prompt(stage1_result, "merge", file_path)
+                final_result = self.llm_client.generate_content(stage2_prompt, stage1_result)
+                
+                if final_result:
+                    print("   Stage 2 completed")
                     return final_result
+                else:
+                    print("   Stage 2 failed, returning stage 1 result")
+                    return stage1_result
             except Exception as e:
-                print(f"   Stage 2 attempt {attempt + 1} failed: {e}")
-                if attempt < retry_count - 1:
-                    time.sleep(2 ** attempt)
-        
-        print("   Stage 2 failed, returning stage 1 result")
-        return stage1_result
+                print(f"❌ Error in two-stage translation with new LLM layer: {e}")
+                return None
+        else:
+            # 従来の実装
+            # 第1段階：英文翻訳（マーカー保持）
+            stage1_prompt = self.create_conflict_translation_prompt(content, "translate", file_path)
+            stage1_result = None
+            
+            for attempt in range(retry_count):
+                try:
+                    response = self.model.generate_content(stage1_prompt)
+                    if response.text:
+                        stage1_result = response.text.strip()
+                        print(f"   Stage 1 completed (attempt {attempt + 1})")
+                        break
+                except Exception as e:
+                    print(f"   Stage 1 attempt {attempt + 1} failed: {e}")
+                    if attempt < retry_count - 1:
+                        time.sleep(2 ** attempt)
+            
+            if not stage1_result:
+                print("   Stage 1 failed completely")
+                return None
+            
+            # 第2段階：マージ（マーカー削除）
+            stage2_prompt = self.create_conflict_translation_prompt(stage1_result, "merge", file_path)
+            
+            for attempt in range(retry_count):
+                try:
+                    response = self.model.generate_content(stage2_prompt)
+                    if response.text:
+                        final_result = response.text.strip()
+                        print(f"   Stage 2 completed (attempt {attempt + 1})")
+                        return final_result
+                except Exception as e:
+                    print(f"   Stage 2 attempt {attempt + 1} failed: {e}")
+                    if attempt < retry_count - 1:
+                        time.sleep(2 ** attempt)
+            
+            print("   Stage 2 failed, returning stage 1 result")
+            return stage1_result
 
     def translate_chunk(self, content: str, file_path: str = "", retry_count: int = 3) -> Optional[str]:
         """単一チャンクを翻訳"""
@@ -274,31 +331,54 @@ class GeminiTranslator:
         # 通常翻訳
         prompt = self.create_translation_prompt(content, file_path)
         
-        for attempt in range(retry_count):
+        if self.use_new_llm:
+            # 新しいLLM層を使用
             try:
-                response = self.model.generate_content(prompt)
-                
-                if response.text:
-                    translated = response.text.strip()
-                    
+                translated = self.llm_client.generate_content(prompt, content)
+                if translated:
                     # 行数チェック
                     original_lines = len(content.split('\n'))
                     translated_lines = len(translated.split('\n'))
                     
-                    # 行数の差が20%を超える場合は警告
-                    if abs(original_lines - translated_lines) / max(original_lines, 1) > 0.2:
+                    # 行数の差が設定値を超える場合は警告
+                    tolerance = getattr(self.translation_config, 'line_count_tolerance', 0.2)
+                    if abs(original_lines - translated_lines) / max(original_lines, 1) > tolerance:
                         print(f"⚠️ Line count mismatch: {original_lines} -> {translated_lines}")
                     
                     return translated
                 else:
-                    print(f"⚠️ Empty response from Gemini (attempt {attempt + 1})")
-                    
+                    print("⚠️ Translation failed with new LLM layer")
+                    return None
             except Exception as e:
-                print(f"⚠️ Translation error (attempt {attempt + 1}): {e}")
-                if attempt < retry_count - 1:
-                    time.sleep(2 ** attempt)  # 指数バックオフ
-        
-        return None
+                print(f"❌ Error with new LLM layer: {e}")
+                return None
+        else:
+            # 従来の実装
+            for attempt in range(retry_count):
+                try:
+                    response = self.model.generate_content(prompt)
+                    
+                    if response.text:
+                        translated = response.text.strip()
+                        
+                        # 行数チェック
+                        original_lines = len(content.split('\n'))
+                        translated_lines = len(translated.split('\n'))
+                        
+                        # 行数の差が20%を超える場合は警告
+                        if abs(original_lines - translated_lines) / max(original_lines, 1) > 0.2:
+                            print(f"⚠️ Line count mismatch: {original_lines} -> {translated_lines}")
+                        
+                        return translated
+                    else:
+                        print(f"⚠️ Empty response from Gemini (attempt {attempt + 1})")
+                        
+                except Exception as e:
+                    print(f"⚠️ Translation error (attempt {attempt + 1}): {e}")
+                    if attempt < retry_count - 1:
+                        time.sleep(2 ** attempt)  # 指数バックオフ
+            
+            return None
     
     def translate_file(self, file_path: str, output_path: Optional[str] = None) -> bool:
         """ファイル全体を翻訳"""
