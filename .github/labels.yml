@@ -1,0 +1,23 @@
+# GitHub repository labels configuration
+# These labels can be synced using GitHub CLI or label management tools
+
+labels:
+  - name: "area:translation-pipeline"
+    description: "Issues related to the automatic translation pipeline and localization workflow"
+    color: "0366d6"
+
+  - name: "agent:copilot"
+    description: "Issues and PRs created or assisted by GitHub Copilot"
+    color: "7C4DFF"
+
+  - name: "priority:P2"
+    description: "Medium priority issue - should be addressed in current iteration"
+    color: "fbca04"
+
+  - name: "ci"
+    description: "Continuous Integration related issues"
+    color: "1d76db"
+
+  - name: "security"
+    description: "Security-related issues and enhancements"
+    color: "d73a4a"
