@@ -1,0 +1,10 @@
+# Requirements for the sync and translation pipeline
+# TODO: Add actual dependencies as they are implemented in other issues
+
+# Common utilities
+requests>=2.31.0
+pyyaml>=6.0
+
+# For potential future dependencies:
+# google-generativeai  # For Gemini API (when implemented)
+# gitpython           # For Git operations (when implemented)

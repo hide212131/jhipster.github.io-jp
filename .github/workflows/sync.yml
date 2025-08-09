@@ -1,0 +1,108 @@
+name: Upstream Sync Workflow
+
+on:
+  # 定期実行：JST 12:17 = UTC 03:17 (JST = UTC + 9)
+  schedule:
+    - cron: '17 3 * * *'
+  
+  # 手動実行
+  workflow_dispatch:
+    inputs:
+      before:
+        description: 'Process files modified before this timestamp'
+        required: false
+        type: string
+      limit:
+        description: 'Limit number of files to process'
+        required: false
+        type: number
+
+# 安全ガード：forkでは動作しない、PRイベントでは動作しない
+jobs:
+  sync:
+    name: Sync with upstream repository
+    runs-on: ubuntu-latest
+    
+    # 安全ガード条件
+    if: github.repository == 'jhipster/jp' && github.event_name != 'pull_request'
+    
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r tools/requirements.txt
+      
+      - name: Generate branch name
+        id: branch
+        run: |
+          BRANCH_NAME="translate/sync-$(date +%Y%m%d-%H%M%S)"
+          echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "Generated branch name: $BRANCH_NAME"
+      
+      - name: Run sync script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python tools/run_sync.py \
+            --mode ci \
+            --branch "${{ steps.branch.outputs.name }}" \
+            ${{ github.event.inputs.before && format('--before {0}', github.event.inputs.before) || '' }} \
+            ${{ github.event.inputs.limit && format('--limit {0}', github.event.inputs.limit) || '' }}
+      
+      - name: Create Pull Request
+        if: env.PR_NEEDED == '1'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.branch.outputs.name }}
+          title: "🌐 Automatic upstream sync - ${{ steps.branch.outputs.name }}"
+          body: |
+            ## 🤖 自動アップストリーム同期
+            
+            このPRは自動的に生成されました。
+            
+            ### 変更内容
+            - アップストリームリポジトリからの変更を同期
+            - 新しいコンテンツの自動翻訳
+            
+            ### 確認事項
+            - [ ] 翻訳の品質確認
+            - [ ] リンクや画像の動作確認
+            - [ ] ビルド成功の確認
+            
+            ### 実行情報
+            - ブランチ: `${{ steps.branch.outputs.name }}`
+            - 実行時刻: ${{ github.run_id }}
+            - ワークフロー: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          labels: |
+            auto-sync
+            translation
+          draft: false
+      
+      - name: Summary
+        run: |
+          echo "## 🎯 Sync Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ steps.branch.outputs.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ env.PR_NEEDED }}" == "1" ]; then
+            echo "- **Result**: ✅ PR created with changes" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Result**: ℹ️ No changes detected" >> $GITHUB_STEP_SUMMARY
+          fi
