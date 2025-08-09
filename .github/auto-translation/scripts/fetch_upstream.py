@@ -84,17 +84,36 @@ class UpstreamFetcher:
         branch_name = f"sync-{commit_hash}"
         
         try:
-            # CI環境ではorigin/mainから、ローカルではauto-translationから分岐
-            if os.getenv('CI') or os.getenv('GITHUB_ACTIONS'):
-                # GitHub Actions環境ではorigin/mainから分岐
-                subprocess.run(["git", "checkout", "origin/main"], check=True)
-            else:
-                # ローカル環境ではauto-translationから分岐
-                subprocess.run(["git", "checkout", "auto-translation"], check=True)
+            # GitHub Actions環境判定
+            is_ci = os.getenv('CI') or os.getenv('GITHUB_ACTIONS')
             
-            subprocess.run(["git", "switch", "-c", branch_name], check=True)
-            print(f"Created branch: {branch_name}")
+            if is_ci:
+                # GitHub Actions環境: 可能なmainブランチから分岐
+                base_branches = ["origin/main", "main", f"{self.upstream_remote}/main"]
+            else:
+                # ローカル環境: 現在のブランチから分岐
+                base_branches = ["HEAD"]
+            
+            # 利用可能なベースブランチを見つける
+            base_branch = None
+            for branch in base_branches:
+                try:
+                    subprocess.run(["git", "rev-parse", "--verify", branch], 
+                                 capture_output=True, check=True)
+                    base_branch = branch
+                    break
+                except subprocess.CalledProcessError:
+                    continue
+            
+            if not base_branch:
+                print(f"No valid base branch found from: {base_branches}")
+                return False
+            
+            # ベースブランチから新しいブランチを作成
+            subprocess.run(["git", "switch", "-c", branch_name, base_branch], check=True)
+            print(f"Created branch: {branch_name} from {base_branch}")
             return True
+            
         except subprocess.CalledProcessError as e:
             print(f"Error creating sync branch: {e}")
             return False
