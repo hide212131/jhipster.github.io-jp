@@ -15,3 +15,6 @@ Gemfile.lock
 
 # VSCode
 .vscode/
+
+# PR body generation tool output
+tools/.out/
