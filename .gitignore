@@ -15,3 +15,8 @@ Gemfile.lock
 
 # VSCode
 .vscode/
+# Translation tools cache and build artifacts
+.cache/
+tools/__pycache__/
+tools/**/__pycache__/
+*.pyc
