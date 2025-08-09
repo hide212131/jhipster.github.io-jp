@@ -1,0 +1,91 @@
+{
+  "metadata": {
+    "generated_at": "2025-08-09T14:58:46.051705",
+    "version": "1.0.0"
+  },
+  "cache_stats": {
+    "total_entries": 8,
+    "unique_files": 6,
+    "first_entry": "2025-08-09T14:58:45.327667",
+    "last_entry": "2025-08-09T14:58:46.046188",
+    "database_size_bytes": 20480
+  },
+  "files": {
+    "pages/getting-started.md": {
+      "upstream_sha": "abc123",
+      "total_lines": 50,
+      "processed_lines": 45,
+      "cache_hits": 12,
+      "cache_hit_rate": 26.666666666666668,
+      "processed_at": "2025-08-09T14:58:46.051961"
+    },
+    "pages/installation.md": {
+      "upstream_sha": "def456",
+      "total_lines": 30,
+      "processed_lines": 28,
+      "cache_hits": 8,
+      "cache_hit_rate": 28.57142857142857,
+      "processed_at": "2025-08-09T14:58:46.051966"
+    },
+    "_posts/2023-01-01-news.md": {
+      "upstream_sha": "ghi789",
+      "total_lines": 25,
+      "processed_lines": 20,
+      "cache_hits": 5,
+      "cache_hit_rate": 25.0,
+      "processed_at": "2025-08-09T14:58:46.051969"
+    }
+  },
+  "session_stats": {},
+  "line_decisions": [
+    {
+      "path": "pages/getting-started.md",
+      "line_no": 1,
+      "src_content": "# Getting Started",
+      "translation": "# 始めよう",
+      "decision_reason": "Header translation using standard pattern",
+      "was_cached": false,
+      "processing_time_ms": 120.5,
+      "timestamp": "2025-08-09T14:58:46.051971"
+    },
+    {
+      "path": "pages/getting-started.md",
+      "line_no": 2,
+      "src_content": "Welcome to our application",
+      "translation": "私たちのアプリケーションへようこそ",
+      "decision_reason": "Formal welcome message",
+      "was_cached": true,
+      "processing_time_ms": 2.1,
+      "timestamp": "2025-08-09T14:58:46.051974"
+    },
+    {
+      "path": "pages/installation.md",
+      "line_no": 1,
+      "src_content": "Installation guide",
+      "translation": "インストールガイド",
+      "decision_reason": "Direct translation of technical term",
+      "was_cached": false,
+      "processing_time_ms": 89.3,
+      "timestamp": "2025-08-09T14:58:46.051975"
+    },
+    {
+      "path": "pages/installation.md",
+      "line_no": 5,
+      "src_content": "Run the following command:",
+      "translation": "次のコマンドを実行してください：",
+      "decision_reason": "Instruction translation with formal tone",
+      "was_cached": true,
+      "processing_time_ms": 1.8,
+      "timestamp": "2025-08-09T14:58:46.051977"
+    }
+  ],
+  "summary": {
+    "total_files": 3,
+    "total_lines": 93,
+    "total_translations": 93,
+    "total_cache_hits": 25,
+    "overall_cache_hit_rate": 26.881720430107524,
+    "total_processing_time_ms": 1250.7,
+    "avg_processing_time_per_line_ms": 13.448387096774194
+  }
+}
