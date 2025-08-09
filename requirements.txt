@@ -1,0 +1,22 @@
+# Python dependencies for JP auto-sync and Gemini translation pipeline
+
+# Google AI/Gemini API
+google-generativeai>=0.3.0
+
+# Translation and text processing
+pyyaml>=6.0
+requests>=2.31.0
+
+# File processing
+chardet>=5.0.0
+python-frontmatter>=1.0.0
+
+# Logging and configuration
+python-dotenv>=1.0.0
+
+# Git operations
+GitPython>=3.1.0
+
+# Development and testing
+pytest>=7.0.0
+pytest-cov>=4.0.0

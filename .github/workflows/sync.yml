@@ -1,0 +1,107 @@
+name: JP Auto-sync and Translation Pipeline
+
+on:
+  schedule:
+    - cron: '0 2 * * 1' # Runs every Monday at 02:00 UTC (after upstream sync)
+  workflow_dispatch: # Allows manual triggering
+    inputs:
+      force_translation:
+        description: 'Force re-translation of all content'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  sync-and-translate:
+    permissions:
+      actions: write
+      checks: write
+      contents: write
+      deployments: write
+      issues: write
+      packages: write
+      pull-requests: write
+      repository-projects: write
+      security-events: write
+      statuses: write
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Python dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Set up Git
+      run: |
+        git config --global user.name 'JP Translation Bot'
+        git config --global user.email 'translation-bot@jhipster.tech'
+
+    - name: Add upstream remote
+      run: git remote add upstream https://github.com/jhipster/jhipster.github.io.git || true
+
+    - name: Fetch upstream and translation-meta
+      run: |
+        git fetch upstream
+        git fetch origin translation-meta:translation-meta || git checkout --orphan translation-meta
+
+    - name: Check for upstream changes
+      id: check-changes
+      run: |
+        git diff --name-only HEAD..upstream/main > changed_files.txt
+        if [ -s changed_files.txt ]; then
+          echo "changes_detected=true" >> $GITHUB_OUTPUT
+          echo "Changed files:"
+          cat changed_files.txt
+        else
+          echo "changes_detected=false" >> $GITHUB_OUTPUT
+          echo "No changes detected"
+        fi
+
+    - name: Run sync and translation pipeline
+      if: steps.check-changes.outputs.changes_detected == 'true' || github.event.inputs.force_translation == 'true'
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        FORCE_TRANSLATION: ${{ github.event.inputs.force_translation }}
+      run: |
+        echo "🔄 Starting sync and translation pipeline..."
+        make sync
+        make translate
+
+    - name: Create translation PR
+      if: steps.check-changes.outputs.changes_detected == 'true' || github.event.inputs.force_translation == 'true'
+      run: |
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        BRANCH_NAME="auto-translation-$TIMESTAMP"
+        git checkout -b $BRANCH_NAME
+        
+        # Commit any translation changes
+        git add .
+        git commit -m "🤖 Auto-translation update $TIMESTAMP" || echo "No changes to commit"
+        
+        # Push and create PR
+        git push origin $BRANCH_NAME
+        gh pr create \
+          --title "🤖 Automated Translation Update $TIMESTAMP" \
+          --base main \
+          --head $BRANCH_NAME \
+          --body "自動翻訳パイプラインによる更新です。\n\n- アップストリームからの同期完了\n- Gemini AIによる翻訳実行\n\n詳細は添付のログを確認してください。"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: translation-logs
+        path: tools/logs/
