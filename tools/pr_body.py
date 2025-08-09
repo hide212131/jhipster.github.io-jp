@@ -89,7 +89,17 @@ class PRBodyGenerator:
                 
             with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
-                return any(marker in content for marker in ['<<<<<<<', '=======', '>>>>>>>'])
+                lines = content.split('\n')
+                
+                # 行の先頭から始まる競合マーカーのみを検出（クォートされた文字列は除外）
+                for line in lines:
+                    stripped = line.strip()
+                    if (stripped.startswith('<<<<<<<') or 
+                        stripped.startswith('=======') or 
+                        stripped.startswith('>>>>>>>')):
+                        return True
+                
+                return False
                 
         except Exception as e:
             print(f"Error checking conflict markers in {filepath}: {e}")
