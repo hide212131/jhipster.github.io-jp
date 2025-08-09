@@ -40,6 +40,9 @@ class GeminiTranslator:
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel(model_name)
         
+        # モック機能の設定
+        self.mock_mode = os.getenv("MOCK_GEMINI_API") == "true"
+        
         # キャッシュシステムを初期化
         self.cache = LLMCache()
         
@@ -308,53 +311,60 @@ class GeminiTranslator:
                 "original": line,
                 "translated": cached_result
             })
+            print(f"      🎯 Cache HIT for line {line_no}: '{line[:30]}...'")
             return cached_result, "cache_hit"
         
         # LLMで翻訳
-        prompt = self.create_translation_prompt(line, file_path)
-        
-        try:
-            response = self.model.generate_content(prompt)
-            if response.text:
-                translated = response.text.strip()
-                
-                # キャッシュに保存
-                self.cache.put(file_path, self.upstream_sha, line_no, line, translated, self.model_name)
-                
-                self.translation_stats["lines_translated"] += 1
-                self.translation_stats["decisions"].append({
-                    "file_path": file_path,
-                    "line_no": line_no,
-                    "decision": "retranslate",
-                    "reason": "llm_translation",
-                    "original": line,
-                    "translated": translated
-                })
-                
-                return translated, "retranslate"
-            else:
-                # 翻訳失敗時は元の行をそのまま使用
+        if self.mock_mode:
+            # モック翻訳（テスト用）- 常に同じ結果を返す
+            translated = f"[日本語] {line}"
+            print(f"      🤖 Mock translation for line {line_no}: '{line[:30]}...'")
+        else:
+            prompt = self.create_translation_prompt(line, file_path)
+            
+            try:
+                response = self.model.generate_content(prompt)
+                if response.text:
+                    translated = response.text.strip()
+                else:
+                    # 翻訳失敗時は元の行をそのまま使用
+                    self.translation_stats["decisions"].append({
+                        "file_path": file_path,
+                        "line_no": line_no,
+                        "decision": "keep",
+                        "reason": "translation_failed",
+                        "original": line,
+                        "translated": line
+                    })
+                    return line, "keep"
+                    
+            except Exception as e:
+                print(f"⚠️ Translation error for line {line_no}: {e}")
                 self.translation_stats["decisions"].append({
                     "file_path": file_path,
                     "line_no": line_no,
                     "decision": "keep",
-                    "reason": "translation_failed",
+                    "reason": f"error: {str(e)}",
                     "original": line,
                     "translated": line
                 })
                 return line, "keep"
-                
-        except Exception as e:
-            print(f"⚠️ Translation error for line {line_no}: {e}")
-            self.translation_stats["decisions"].append({
-                "file_path": file_path,
-                "line_no": line_no,
-                "decision": "keep",
-                "reason": f"error: {str(e)}",
-                "original": line,
-                "translated": line
-            })
-            return line, "keep"
+        
+        # キャッシュに保存
+        self.cache.put(file_path, self.upstream_sha, line_no, line, translated, self.model_name)
+        
+        self.translation_stats["lines_translated"] += 1
+        decision_reason = "mock_translation" if self.mock_mode else "llm_translation"
+        self.translation_stats["decisions"].append({
+            "file_path": file_path,
+            "line_no": line_no,
+            "decision": "retranslate",
+            "reason": decision_reason,
+            "original": line,
+            "translated": translated
+        })
+        
+        return translated, "retranslate"
     def translate_chunk(self, content: str, file_path: str = "", retry_count: int = 3) -> Optional[str]:
         """単一チャンクを翻訳"""
         # コンフリクトマーカーがあるかチェック
@@ -386,8 +396,12 @@ class GeminiTranslator:
     def translate_file(self, file_path: str, output_path: Optional[str] = None) -> bool:
         """ファイル全体を翻訳"""
         try:
-            # プロジェクトルートからの相対パスでファイルを読み込み
-            full_file_path = self.project_root / file_path
+            # プロジェクトルートまたは現在の作業ディレクトリからの相対パスでファイルを読み込み
+            if (self.project_root / file_path).exists():
+                full_file_path = self.project_root / file_path
+            else:
+                # 現在のディレクトリからの相対パス
+                full_file_path = Path(file_path)
             with open(full_file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
@@ -417,6 +431,10 @@ class GeminiTranslator:
             
             # 出力ファイルパスを決定
             if output_path is None:
+                # テスト用の場合は上書きしない
+                if self.mock_mode:
+                    print("📝 Mock mode: not writing to file")
+                    return True
                 full_output_path = full_file_path
             else:
                 full_output_path = self.project_root / output_path
@@ -511,20 +529,39 @@ def main():
         default="unknown",
         help="Upstream commit SHA for cache key"
     )
+    parser.add_argument(
+        "--output",
+        help="Output file path (for single file translation)"
+    )
     
     args = parser.parse_args()
     
     # API キーをチェック
     api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key or api_key == "fake_api_key_for_development":
+    if not api_key:
         print("❌ GEMINI_API_KEY environment variable is required")
         sys.exit(1)
+    
+    # テスト用のダミーAPI動作
+    if api_key == "fake_api_key_for_development":
+        print("⚠️ Using fake API key for development/testing")
+        # モック機能を有効にするフラグを設定
+        os.environ["MOCK_GEMINI_API"] = "true"
     
     translator = GeminiTranslator(api_key, upstream_sha=args.upstream_sha)
     
     if args.file:
         # 単一ファイル翻訳
         success = translator.translate_file(args.file, args.output)
+        
+        # 翻訳統計を表示
+        stats = translator.get_translation_stats()
+        print("\n📊 Translation Statistics:")
+        print(f"   Lines processed: {stats['lines_processed']}")
+        print(f"   Lines cached: {stats['lines_cached']}")
+        print(f"   Lines translated: {stats['lines_translated']}")
+        print(f"   Cache hit rate: {stats['cache_hit_rate']:.1f}%")
+        
         sys.exit(0 if success else 1)
     elif args.classification:
         # バッチ翻訳

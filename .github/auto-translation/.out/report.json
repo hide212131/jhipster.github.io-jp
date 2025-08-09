@@ -1,0 +1,13 @@
+{
+  "metadata": {
+    "commit_hash": "test_save_xyz789",
+    "dry_run": true
+  },
+  "summary": {
+    "total_files": 5,
+    "translatable_files": 3,
+    "cache_hit_rate": 75.0
+  },
+  "decisions": [],
+  "cache_stats": {}
+}
