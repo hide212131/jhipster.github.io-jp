@@ -145,6 +145,10 @@ python scripts/run_translation_pipeline.py --hash <commit-sha>
 
 # ドライラン（実際の翻訳・コミット・PRなし）
 python scripts/run_translation_pipeline.py --hash <commit-sha> --dry-run
+
+# 開発モード（フィルタ機能付き）
+python scripts/run_translation_pipeline.py --mode dev --hash <commit-sha> --limit 5
+python scripts/run_translation_pipeline.py --mode dev --paths docs/ --dry-run
 ```
 
 ### 個別スクリプト実行（デバッグ用）
@@ -167,6 +171,56 @@ python scripts/commit_and_pr.py --classification classification.json --push-orig
 | `new-only` | a | 新規ファイルのみ |
 
 - `make run` で全体一括処理（統合パイプライン）も可能。
+
+---
+
+## 開発モード（Development Mode）
+
+ローカル開発を支援する特別なモードで、処理対象を絞り込んでテストや調整を効率的に行えます。
+
+### 開発モードの有効化
+
+```bash
+# 基本の開発モード
+python scripts/run_translation_pipeline.py --mode dev
+
+# Makefileからの実行
+make run-dev
+```
+
+### フィルタオプション
+
+| オプション | 説明 | 例 |
+|-----------|------|-----|
+| `--before` | 指定コミット以前の変更のみ処理 | `--before abc1234` |
+| `--limit` | 処理ファイル数を制限 | `--limit 5` |
+| `--paths` | 特定パスのファイルのみ処理 | `--paths docs/ src/` |
+
+### 開発モード使用例
+
+```bash
+# 最新5ファイルのみ翻訳
+python scripts/run_translation_pipeline.py --mode dev --limit 5 --dry-run
+
+# docs/以下のファイルのみ処理
+python scripts/run_translation_pipeline.py --mode dev --paths docs/ --dry-run
+
+# 特定コミット以前の変更のみ（デバッグ用）
+python scripts/run_translation_pipeline.py --mode dev --before abc1234 --dry-run
+
+# 複合フィルタ
+python scripts/run_translation_pipeline.py --mode dev --paths docs/ --limit 3 --dry-run
+
+# Makefileでの実行
+make run-dev LIMIT=5 DRY_RUN=1
+make run-dev PATHS="docs/ src/" BEFORE=abc1234
+```
+
+### フィルタ優先順位
+
+1. **before**: 指定コミット以前の変更のみ
+2. **paths**: パスフィルタ
+3. **limit**: ファイル数制限（翻訳対象のみ、優先度: a > b-1 > b-2）
 
 ---
 

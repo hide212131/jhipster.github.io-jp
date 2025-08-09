@@ -1,6 +1,6 @@
 # JHipster日本語ドキュメント自動翻訳システム Makefile
 
-.PHONY: install test run clean help
+.PHONY: install test run clean help run-dev
 
 # デフォルトターゲット
 help:
@@ -12,6 +12,7 @@ help:
 	@echo "  run         - 自動翻訳を実行（全体）"
 	@echo "  run-dry     - 自動翻訳をドライランモードで実行"
 	@echo "  run-new     - 新規ファイルのみ翻訳"
+	@echo "  run-dev     - 開発モードで実行（フィルタオプション利用可能）"
 	@echo "  clean       - 一時ファイルをクリーンアップ"
 	@echo "  lint        - コード品質チェック"
 	@echo ""
@@ -19,6 +20,12 @@ help:
 	@echo "  GEMINI_API_KEY  - Gemini APIキー（必須）"
 	@echo "  GH_TOKEN        - GitHub Token（PR作成用）"
 	@echo "  COMMIT_HASH     - 特定のコミットハッシュを指定"
+	@echo ""
+	@echo "開発モードオプション例:"
+	@echo "  make run-dev LIMIT=5                    # 5ファイルまで処理"
+	@echo "  make run-dev PATHS='docs/ src/'         # 特定パスのみ"
+	@echo "  make run-dev BEFORE=abc1234             # 指定コミット以前の変更のみ"
+	@echo "  make run-dev LIMIT=3 PATHS='docs/'     # 組み合わせ"
 
 # 依存関係インストール
 install:
@@ -127,3 +134,20 @@ postprocess:
 
 commit:
 	@poetry run python scripts/commit_and_pr.py --classification classification.json
+
+# 開発モード実行
+run-dev:
+	@echo "🧪 Running auto-translation (development mode)..."
+	@$(eval DEV_ARGS := --mode dev)
+	@$(eval DEV_ARGS += $(if $(COMMIT_HASH),--hash $(COMMIT_HASH),--hash HEAD))
+	@$(eval DEV_ARGS += $(if $(BEFORE),--before $(BEFORE)))
+	@$(eval DEV_ARGS += $(if $(LIMIT),--limit $(LIMIT)))
+	@$(eval DEV_ARGS += $(if $(PATHS),--paths $(PATHS)))
+	@$(eval DEV_ARGS += $(if $(DRY_RUN),--dry-run))
+	@echo "   Options: $(DEV_ARGS)"
+	@cd ../.. && python .github/auto-translation/scripts/run_translation_pipeline.py $(DEV_ARGS)
+
+# 開発モードドライラン
+run-dev-dry:
+	@echo "🧪 Running auto-translation (development mode - dry run)..."
+	@$(MAKE) run-dev DRY_RUN=1

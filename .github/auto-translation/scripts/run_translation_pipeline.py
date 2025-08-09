@@ -16,16 +16,30 @@ from typing import Dict, List, Optional
 
 
 class TranslationPipeline:
-    def __init__(self, commit_hash: str, dry_run: bool = False):
+    def __init__(self, commit_hash: str, dry_run: bool = False, mode: str = "normal",
+                 before_commit: Optional[str] = None, limit: Optional[int] = None, 
+                 paths: Optional[List[str]] = None):
         self.commit_hash = commit_hash
         self.dry_run = dry_run
+        self.mode = mode
+        self.before_commit = before_commit
+        self.limit = limit
+        self.paths = paths if paths else []
         self.start_time = datetime.now()
         self.script_dir = Path(__file__).parent
         self.classification_file = self.script_dir.parent / "classification.json"
         
         print(f"🚀 Translation Pipeline Starting")
         print(f"   Target commit: {commit_hash}")
+        print(f"   Mode: {mode}")
         print(f"   Dry run: {dry_run}")
+        if mode == "dev":
+            if before_commit:
+                print(f"   Before commit: {before_commit}")
+            if limit:
+                print(f"   File limit: {limit}")
+            if paths:
+                print(f"   Target paths: {', '.join(paths)}")
         print(f"   Start time: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         print()
 
@@ -176,8 +190,18 @@ class TranslationPipeline:
         print("=" * 60)
         print(f"🎯 Translation Pipeline {status}")
         print(f"   Target commit: {self.commit_hash}")
+        print(f"   Mode: {self.mode}")
         print(f"   Duration: {duration.total_seconds():.1f}s")
         print(f"   Dry run: {self.dry_run}")
+        
+        # 開発モードの設定を表示
+        if self.mode == "dev":
+            if self.before_commit:
+                print(f"   Before commit: {self.before_commit}")
+            if self.limit:
+                print(f"   File limit: {self.limit}")
+            if self.paths:
+                print(f"   Target paths: {', '.join(self.paths)}")
         
         # 分類結果があれば表示
         classification = self.load_classification()
@@ -187,7 +211,108 @@ class TranslationPipeline:
         
         print("=" * 60)
 
+    def apply_dev_mode_filters(self, classification: Dict) -> Dict:
+        """開発モード用のフィルタを適用"""
+        if self.mode != "dev":
+            return classification
+            
+        print("🔧 Applying dev mode filters...")
+        
+        # フィルタ前の状態を記録
+        original_counts = {}
+        for category in ["a", "b-1", "b-2", "c"]:
+            original_counts[category] = len(classification.get("summary", {}).get(category, []))
+        
+        # before_commitフィルタ: 指定コミット以前の変更のみ対象
+        if self.before_commit:
+            print(f"   📅 Filtering files modified before commit: {self.before_commit}")
+            classification = self._filter_by_before_commit(classification)
+        
+        # pathsフィルタ: 特定パスのファイルのみ対象
+        if self.paths:
+            print(f"   📁 Filtering by paths: {', '.join(self.paths)}")
+            classification = self._filter_by_paths(classification)
+        
+        # limitフィルタ: 処理ファイル数制限
+        if self.limit:
+            print(f"   🔢 Limiting to {self.limit} files")
+            classification = self._filter_by_limit(classification)
+            
+        # フィルタ後の状態を表示
+        filtered_counts = {}
+        for category in ["a", "b-1", "b-2", "c"]:
+            filtered_counts[category] = len(classification.get("summary", {}).get(category, []))
+            
+        print("   📊 Filter results:")
+        for category in ["a", "b-1", "b-2", "c"]:
+            orig = original_counts[category]
+            filt = filtered_counts[category]
+            if orig != filt:
+                print(f"      Category {category}: {orig} → {filt} files")
+        
+        # 翻訳対象ファイル数を再計算
+        translatable_files = sum(len(files) for cat, files in classification.get("summary", {}).items() 
+                                if cat in ["a", "b-1", "b-2"])
+        classification["translatable_files"] = translatable_files
+        
+        print()
+        return classification
+
     def check_sync_branch_exists(self) -> bool:
+        """指定コミット以前の変更のみをフィルタ"""
+        try:
+            # before_commitより新しいコミットでの変更ファイルを除外
+            result = subprocess.run(
+                ["git", "diff", "--name-only", f"{self.before_commit}..HEAD"],
+                capture_output=True, text=True, check=True,
+                cwd=self.script_dir.parent.parent.parent
+            )
+            newer_files = set(result.stdout.strip().split('\n')) if result.stdout.strip() else set()
+            
+            # 各カテゴリから新しいファイルを除外
+            summary = classification.get("summary", {})
+            for category in ["a", "b-1", "b-2", "c"]:
+                if category in summary:
+                    summary[category] = [f for f in summary[category] if f not in newer_files]
+                    
+        except subprocess.CalledProcessError as e:
+            print(f"      ⚠️  Warning: Could not filter by before_commit: {e}")
+        
+        return classification
+        
+    def _filter_by_paths(self, classification: Dict) -> Dict:
+        """指定パスのファイルのみをフィルタ"""
+        summary = classification.get("summary", {})
+        for category in ["a", "b-1", "b-2", "c"]:
+            if category in summary:
+                summary[category] = [
+                    f for f in summary[category] 
+                    if any(f.startswith(path) for path in self.paths)
+                ]
+        return classification
+        
+    def _filter_by_limit(self, classification: Dict) -> Dict:
+        """処理ファイル数を制限"""
+        summary = classification.get("summary", {})
+        
+        # 翻訳対象ファイルを優先順位で収集（a > b-1 > b-2）
+        all_translatable = []
+        for category in ["a", "b-1", "b-2"]:
+            if category in summary:
+                for file in summary[category]:
+                    all_translatable.append((category, file))
+        
+        # 制限数まで切り取り
+        if len(all_translatable) > self.limit:
+            limited_files = all_translatable[:self.limit]
+            
+            # 各カテゴリを更新
+            new_summary = {"a": [], "b-1": [], "b-2": [], "c": summary.get("c", [])}
+            for category, file in limited_files:
+                new_summary[category].append(file)
+            summary.update(new_summary)
+            
+        return classification
         """syncブランチが既に存在するかチェック"""
         # 完全ハッシュと短縮ハッシュの両方をチェック
         sync_branches = [
@@ -272,6 +397,18 @@ class TranslationPipeline:
                 print("⚠️  Could not load classification results")
                 return False
             
+            # 開発モードのフィルタを適用
+            classification = self.apply_dev_mode_filters(classification)
+            
+            # フィルタ適用後の分類結果を保存
+            if self.mode == "dev":
+                try:
+                    with open(self.classification_file, 'w', encoding='utf-8') as f:
+                        json.dump(classification, f, ensure_ascii=False, indent=2)
+                    print(f"   💾 Updated classification saved to {self.classification_file}")
+                except Exception as e:
+                    print(f"   ⚠️  Failed to save filtered classification: {e}")
+            
             self.print_classification_summary(classification)
             
             translatable_files = classification.get("translatable_files", 0)
@@ -351,6 +488,10 @@ Examples:
   
   # Run with latest upstream commit
   python run_translation_pipeline.py --hash HEAD
+  
+  # Development mode with filters
+  python run_translation_pipeline.py --mode dev --hash HEAD --limit 5
+  python run_translation_pipeline.py --mode dev --before abc1234 --paths docs/
         """
     )
     
@@ -366,7 +507,41 @@ Examples:
         help="Dry run mode (skip translation, commit, and PR creation)"
     )
     
+    parser.add_argument(
+        "--mode",
+        choices=["normal", "dev"],
+        default="normal",
+        help="Pipeline mode: normal (default) or dev (development with filters)"
+    )
+    
+    # 開発モード専用オプション
+    dev_group = parser.add_argument_group("development mode options")
+    dev_group.add_argument(
+        "--before",
+        dest="before_commit",
+        help="Process only files modified before this commit (dev mode only)"
+    )
+    
+    dev_group.add_argument(
+        "--limit",
+        type=int,
+        help="Limit number of files to process (dev mode only)"
+    )
+    
+    dev_group.add_argument(
+        "--paths",
+        nargs="+",
+        help="Process only files under these paths (dev mode only)"
+    )
+    
     args = parser.parse_args()
+    
+    # 開発モード専用オプションの検証
+    if args.mode != "dev":
+        dev_options = [args.before_commit, args.limit, args.paths]
+        if any(opt is not None for opt in dev_options):
+            print("❌ Development mode options (--before, --limit, --paths) can only be used with --mode dev")
+            sys.exit(1)
     
     # 作業ディレクトリを確認
     if not Path(".github/auto-translation").exists():
@@ -375,7 +550,14 @@ Examples:
         sys.exit(1)
     
     # パイプライン実行
-    pipeline = TranslationPipeline(args.hash, args.dry_run)
+    pipeline = TranslationPipeline(
+        args.hash, 
+        args.dry_run, 
+        args.mode,
+        args.before_commit,
+        args.limit,
+        args.paths
+    )
     success = pipeline.run()
     
     sys.exit(0 if success else 1)
