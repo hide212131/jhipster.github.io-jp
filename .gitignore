@@ -5,6 +5,14 @@ _site
 debug.log
 npm-debug.log
 
+# Python
+.venv/
+*.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+*.egg-info/
+
 # Intellij
 .idea/
 *.iml
