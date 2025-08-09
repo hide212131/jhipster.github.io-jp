@@ -21,13 +21,19 @@ def find_project_root() -> Path:
         if (current / '.git').exists() or (current / 'package.json').exists():
             return current
         current = current.parent
-    return Path.cwd()
+    
+    # フォールバック: 現在のディレクトリに.gitやpackage.jsonがあるかチェック
+    cwd = Path.cwd()
+    if (cwd / '.git').exists() or (cwd / 'package.json').exists():
+        return cwd
+    
+    return cwd
 
 
 class PRBodyGenerator:
-    def __init__(self, base_branch: str = "origin/main"):
+    def __init__(self, base_branch: str = "origin/main", project_root: Optional[Path] = None):
         self.base_branch = base_branch
-        self.project_root = find_project_root()
+        self.project_root = project_root or find_project_root()
         self.translatable_extensions = {".md", ".mdx", ".adoc", ".html"}
         self.non_translatable_extensions = {
             ".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp",
@@ -94,10 +100,15 @@ class PRBodyGenerator:
                 # 行の先頭から始まる競合マーカーのみを検出（クォートされた文字列は除外）
                 for line in lines:
                     stripped = line.strip()
+                    # より確実な競合マーカー検出
                     if (stripped.startswith('<<<<<<<') or 
                         stripped.startswith('=======') or 
                         stripped.startswith('>>>>>>>')):
-                        return True
+                        # さらに正確性を高めるため、長さもチェック
+                        if (stripped.startswith('<<<<<<<') and len(stripped) >= 7) or \
+                           (stripped.startswith('=======') and len(stripped) >= 7) or \
+                           (stripped.startswith('>>>>>>>') and len(stripped) >= 7):
+                            return True
                 
                 return False
                 
@@ -144,7 +155,8 @@ class PRBodyGenerator:
                 return 0
             
             with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
-                return len(f.readlines())
+                lines = f.readlines()
+                return len(lines)
         except Exception:
             return 0
     
@@ -170,10 +182,13 @@ class PRBodyGenerator:
         except Exception:
             return current_lines, 0, current_lines
     
-    def determine_change_type(self, git_status: str, has_conflict: bool) -> str:
+    def determine_change_type(self, git_status: str, has_conflict: bool, is_translatable: bool) -> str:
         """変更種別を決定"""
         if git_status == "A":
-            return "insert"
+            if is_translatable:
+                return "insert"
+            else:
+                return "copy_only"
         elif git_status == "D":
             return "delete"
         elif git_status == "M":
@@ -209,7 +224,7 @@ class PRBodyGenerator:
         for git_status, filepath in changed_files:
             is_translatable = self.is_translatable_file(filepath)
             has_conflict = self.has_conflict_markers(filepath)
-            change_type = self.determine_change_type(git_status, has_conflict)
+            change_type = self.determine_change_type(git_status, has_conflict, is_translatable)
             strategy = self.determine_strategy(change_type, is_translatable, has_conflict)
             current_lines, base_lines, line_diff = self.get_line_count_diff(filepath)
             
