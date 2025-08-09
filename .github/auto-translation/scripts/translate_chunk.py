@@ -11,9 +11,10 @@ import re
 import sys
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import google.generativeai as genai
+from llm_cache import LLMCache
 
 
 def find_project_root() -> Path:
@@ -27,9 +28,10 @@ def find_project_root() -> Path:
 
 
 class GeminiTranslator:
-    def __init__(self, api_key: str, model_name: str = "gemini-1.5-flash"):
+    def __init__(self, api_key: str, model_name: str = "gemini-1.5-flash", upstream_sha: str = "unknown"):
         self.api_key = api_key
         self.model_name = model_name
+        self.upstream_sha = upstream_sha
         self.max_tokens = 4096
         self.style_guide_content = ""
         self.project_root = find_project_root()
@@ -37,6 +39,17 @@ class GeminiTranslator:
         # Gemini APIを設定
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel(model_name)
+        
+        # キャッシュシステムを初期化
+        self.cache = LLMCache()
+        
+        # 翻訳統計
+        self.translation_stats = {
+            "lines_processed": 0,
+            "lines_cached": 0,
+            "lines_translated": 0,
+            "decisions": []  # 各行の決定理由を記録
+        }
         
         # スタイルガイドを読み込み
         self.load_style_guide()
@@ -263,6 +276,85 @@ class GeminiTranslator:
         print("   Stage 2 failed, returning stage 1 result")
         return stage1_result
 
+    def translate_line_with_cache(self, line: str, line_no: int, file_path: str) -> Tuple[str, str]:
+        """
+        行レベルでキャッシュを使用して翻訳
+        
+        Returns:
+            (翻訳結果, 決定理由) のタプル
+        """
+        # 空行やマークダウン記法のみの行はそのまま返す
+        stripped_line = line.strip()
+        if not stripped_line or stripped_line.startswith('#') or stripped_line.startswith('```'):
+            self.translation_stats["decisions"].append({
+                "file_path": file_path,
+                "line_no": line_no,
+                "decision": "keep",
+                "reason": "empty_or_markdown_syntax",
+                "original": line,
+                "translated": line
+            })
+            return line, "keep"
+        
+        # キャッシュから確認
+        cached_result = self.cache.get(file_path, self.upstream_sha, line_no, line)
+        if cached_result:
+            self.translation_stats["lines_cached"] += 1
+            self.translation_stats["decisions"].append({
+                "file_path": file_path,
+                "line_no": line_no,
+                "decision": "cache_hit",
+                "reason": "found_in_cache",
+                "original": line,
+                "translated": cached_result
+            })
+            return cached_result, "cache_hit"
+        
+        # LLMで翻訳
+        prompt = self.create_translation_prompt(line, file_path)
+        
+        try:
+            response = self.model.generate_content(prompt)
+            if response.text:
+                translated = response.text.strip()
+                
+                # キャッシュに保存
+                self.cache.put(file_path, self.upstream_sha, line_no, line, translated, self.model_name)
+                
+                self.translation_stats["lines_translated"] += 1
+                self.translation_stats["decisions"].append({
+                    "file_path": file_path,
+                    "line_no": line_no,
+                    "decision": "retranslate",
+                    "reason": "llm_translation",
+                    "original": line,
+                    "translated": translated
+                })
+                
+                return translated, "retranslate"
+            else:
+                # 翻訳失敗時は元の行をそのまま使用
+                self.translation_stats["decisions"].append({
+                    "file_path": file_path,
+                    "line_no": line_no,
+                    "decision": "keep",
+                    "reason": "translation_failed",
+                    "original": line,
+                    "translated": line
+                })
+                return line, "keep"
+                
+        except Exception as e:
+            print(f"⚠️ Translation error for line {line_no}: {e}")
+            self.translation_stats["decisions"].append({
+                "file_path": file_path,
+                "line_no": line_no,
+                "decision": "keep",
+                "reason": f"error: {str(e)}",
+                "original": line,
+                "translated": line
+            })
+            return line, "keep"
     def translate_chunk(self, content: str, file_path: str = "", retry_count: int = 3) -> Optional[str]:
         """単一チャンクを翻訳"""
         # コンフリクトマーカーがあるかチェック
@@ -271,34 +363,25 @@ class GeminiTranslator:
         if has_conflicts:
             return self.translate_chunk_two_stage(content, file_path, retry_count)
         
-        # 通常翻訳
-        prompt = self.create_translation_prompt(content, file_path)
+        # 行レベルでキャッシュを使用した翻訳
+        lines = content.split('\n')
+        translated_lines = []
         
-        for attempt in range(retry_count):
-            try:
-                response = self.model.generate_content(prompt)
-                
-                if response.text:
-                    translated = response.text.strip()
-                    
-                    # 行数チェック
-                    original_lines = len(content.split('\n'))
-                    translated_lines = len(translated.split('\n'))
-                    
-                    # 行数の差が20%を超える場合は警告
-                    if abs(original_lines - translated_lines) / max(original_lines, 1) > 0.2:
-                        print(f"⚠️ Line count mismatch: {original_lines} -> {translated_lines}")
-                    
-                    return translated
-                else:
-                    print(f"⚠️ Empty response from Gemini (attempt {attempt + 1})")
-                    
-            except Exception as e:
-                print(f"⚠️ Translation error (attempt {attempt + 1}): {e}")
-                if attempt < retry_count - 1:
-                    time.sleep(2 ** attempt)  # 指数バックオフ
+        for line_no, line in enumerate(lines, 1):
+            self.translation_stats["lines_processed"] += 1
+            translated_line, decision = self.translate_line_with_cache(line, line_no, file_path)
+            translated_lines.append(translated_line)
         
-        return None
+        translated_content = '\n'.join(translated_lines)
+        
+        # 行数チェック
+        original_lines = len(lines)
+        translated_line_count = len(translated_lines)
+        
+        if original_lines != translated_line_count:
+            print(f"⚠️ Line count mismatch: {original_lines} -> {translated_line_count}")
+        
+        return translated_content
     
     def translate_file(self, file_path: str, output_path: Optional[str] = None) -> bool:
         """ファイル全体を翻訳"""
@@ -349,6 +432,19 @@ class GeminiTranslator:
         except Exception as e:
             print(f"❌ Error translating file {file_path}: {e}")
             return False
+    
+    def get_translation_stats(self) -> Dict:
+        """翻訳統計情報を取得"""
+        cache_stats = self.cache.get_stats()
+        
+        return {
+            "lines_processed": self.translation_stats["lines_processed"],
+            "lines_cached": self.translation_stats["lines_cached"],
+            "lines_translated": self.translation_stats["lines_translated"],
+            "cache_hit_rate": cache_stats["hit_rate_percent"],
+            "decisions": self.translation_stats["decisions"],
+            "cache_stats": cache_stats
+        }
     
     def translate_files_from_classification(self, classification_file: str, mode: str = "all") -> bool:
         """分類結果から翻訳対象ファイルを翻訳"""
@@ -411,8 +507,9 @@ def main():
         help="Translation mode for batch processing"
     )
     parser.add_argument(
-        "--output",
-        help="Output file path (for single file translation)"
+        "--upstream-sha",
+        default="unknown",
+        help="Upstream commit SHA for cache key"
     )
     
     args = parser.parse_args()
@@ -423,7 +520,7 @@ def main():
         print("❌ GEMINI_API_KEY environment variable is required")
         sys.exit(1)
     
-    translator = GeminiTranslator(api_key)
+    translator = GeminiTranslator(api_key, upstream_sha=args.upstream_sha)
     
     if args.file:
         # 単一ファイル翻訳

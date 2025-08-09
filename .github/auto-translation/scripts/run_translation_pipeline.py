@@ -22,11 +22,16 @@ class TranslationPipeline:
         self.start_time = datetime.now()
         self.script_dir = Path(__file__).parent
         self.classification_file = self.script_dir.parent / "classification.json"
+        self.report_file = self.script_dir.parent / ".out" / "report.json"
+        
+        # .outディレクトリを作成
+        self.report_file.parent.mkdir(parents=True, exist_ok=True)
         
         print(f"🚀 Translation Pipeline Starting")
         print(f"   Target commit: {commit_hash}")
         print(f"   Dry run: {dry_run}")
         print(f"   Start time: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"   Report file: {self.report_file}")
         print()
 
     def run_step(self, step_name: str, command: List[str], required: bool = True, 
@@ -168,6 +173,69 @@ class TranslationPipeline:
                     print(f"      ... and {len(files) - 3} more")
         print()
 
+    def generate_report(self, classification: Dict = None) -> Dict:
+        """翻訳結果のレポートを生成"""
+        report = {
+            "metadata": {
+                "pipeline_start_time": self.start_time.isoformat(),
+                "pipeline_end_time": datetime.now().isoformat(),
+                "commit_hash": self.commit_hash,
+                "dry_run": self.dry_run,
+                "classification_file": str(self.classification_file),
+                "report_generated_at": datetime.now().isoformat()
+            },
+            "summary": {
+                "total_files": 0,
+                "translatable_files": 0,
+                "cache_hit_rate": 0.0,
+                "lines_processed": 0,
+                "lines_cached": 0,
+                "lines_translated": 0
+            },
+            "classification": classification or {},
+            "decisions": [],
+            "cache_stats": {}
+        }
+        
+        if classification:
+            report["summary"]["total_files"] = classification.get("total_files", 0)
+            report["summary"]["translatable_files"] = classification.get("translatable_files", 0)
+        
+        # LLMキャッシュ統計を取得
+        try:
+            # キャッシュモジュールをインポート
+            import sys
+            sys.path.append(str(self.script_dir))
+            from llm_cache import LLMCache
+            
+            cache = LLMCache()
+            cache_stats = cache.get_stats()
+            db_stats = cache.get_database_stats()
+            
+            report["cache_stats"] = {
+                "runtime_stats": cache_stats,
+                "database_stats": db_stats
+            }
+            
+            report["summary"]["cache_hit_rate"] = cache_stats.get("hit_rate_percent", 0.0)
+            
+        except Exception as e:
+            print(f"⚠️ Failed to get cache stats: {e}")
+        
+        return report
+    
+    def save_report(self, report: Dict) -> bool:
+        """レポートをJSONファイルに保存"""
+        try:
+            with open(self.report_file, 'w', encoding='utf-8') as f:
+                json.dump(report, f, indent=2, ensure_ascii=False)
+            
+            print(f"📊 Report saved: {self.report_file}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to save report: {e}")
+            return False
     def print_summary(self, success: bool = True) -> None:
         """実行結果の要約を表示"""
         duration = datetime.now() - self.start_time
@@ -184,6 +252,18 @@ class TranslationPipeline:
         if classification:
             translatable_files = classification.get("translatable_files", 0)
             print(f"   Translatable files: {translatable_files}")
+        
+        # レポートを生成・保存
+        if not self.dry_run:
+            report = self.generate_report(classification)
+            self.save_report(report)
+            
+            # サマリー表示
+            if "cache_stats" in report and "runtime_stats" in report["cache_stats"]:
+                cache_stats = report["cache_stats"]["runtime_stats"]
+                print(f"   Cache hit rate: {cache_stats.get('hit_rate_percent', 0):.1f}%")
+                print(f"   Cache hits: {cache_stats.get('cache_hits', 0)}")
+                print(f"   Cache misses: {cache_stats.get('cache_misses', 0)}")
         
         print("=" * 60)
 
@@ -296,7 +376,8 @@ class TranslationPipeline:
                 "Translate files",
                 ["python", "scripts/translate_chunk.py", 
                  "--classification", str(self.classification_file),
-                 "--mode", "all"],
+                 "--mode", "all",
+                 "--upstream-sha", self.commit_hash],
                 env_vars={"GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", "")}
             )
             if not success:
