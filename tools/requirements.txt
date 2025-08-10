@@ -1,0 +1,8 @@
+# Python dependencies for JHipster.github.io-jp tools
+click>=8.0.0
+pyyaml>=6.0.0
+gitpython>=3.1.0
+black>=22.0.0
+flake8>=4.0.0
+pytest>=7.0.0
+requests>=2.28.0
