@@ -56,4 +56,4 @@ Thumbs.db
 
 # Project specific
 tools/.out/
-tools/__pycache__/
+tools/__pycache__/.cache/
