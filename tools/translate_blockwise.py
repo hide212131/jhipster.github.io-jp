@@ -70,6 +70,13 @@ class BlockwiseTranslator:
         
         return final_content
     
+    def check_semantic_change(self, original: str, modified: str) -> bool:
+        """Check if modification represents semantic change requiring retranslation.
+        
+        Delegates to the underlying LLM translator for semantic analysis.
+        """
+        return self.llm.check_semantic_change(original, modified)
+    
     def _build_context_text(self, context_blocks: List[Dict[str, Any]], target_index: int, global_context: str = "") -> str:
         """Build context text for translation."""
         context_parts = []

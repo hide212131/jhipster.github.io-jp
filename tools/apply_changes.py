@@ -2,7 +2,7 @@
 
 import click
 import json
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from pathlib import Path
 from git_utils import GitUtils
 from translate_blockwise import BlockwiseTranslator
@@ -16,6 +16,7 @@ class ChangeApplicator:
         """Initialize change applicator."""
         self.git_utils = GitUtils()
         self.translator = BlockwiseTranslator()
+        self.similarity_threshold = 0.98  # Threshold for minor changes (軽微変更)
     
     def apply_changes(self, changes_file: str, target_files: List[str] = None) -> Dict[str, Any]:
         """Apply changes from discovery results."""
@@ -53,9 +54,9 @@ class ChangeApplicator:
                 })
                 
                 # Update statistics
-                if result["action"] == "translated":
+                if result["action"] in ["translated"]:
                     results["statistics"]["translated"] += 1
-                elif result["action"] == "kept_existing":
+                elif result["action"] in ["kept_existing", "kept_existing_llm"]:
                     results["statistics"]["kept_existing"] += 1
                     
             except Exception as e:
@@ -91,50 +92,153 @@ class ChangeApplicator:
         return results
     
     def _apply_file_changes(self, file_info: Dict[str, Any]) -> Dict[str, Any]:
-        """Apply changes for a specific file."""
+        """Apply changes for a specific file with operation-level handling."""
         file_path = file_info["path"]
         operations = file_info.get("operations", [])
         
         if not operations:
             return {"action": "no_changes", "details": "No operations to apply"}
         
+        # Get existing Japanese translation to preserve when appropriate
+        existing_translation = self._get_existing_translation(file_path)
+        
         # Analyze operations to determine strategy
-        needs_translation = any(
-            op["strategy"] in ["translate_new", "retranslate"] 
-            for op in operations
+        strategies = [op.get("strategy", "retranslate") for op in operations]
+        
+        # Handle based on operation strategies
+        if all(strategy == "keep_existing" for strategy in strategies):
+            # All operations are keep_existing - preserve existing translation
+            if existing_translation:
+                self._write_file_content(file_path, existing_translation)
+                return {
+                    "action": "kept_existing",
+                    "details": f"Preserved existing translation for {len(operations)} operations",
+                    "operations_count": len(operations),
+                    "strategies": strategies
+                }
+            else:
+                # No existing translation, need to translate
+                return self._translate_file_content(file_path, operations)
+        
+        elif any(strategy in ["translate_new", "retranslate"] for strategy in strategies):
+            # Contains operations requiring translation
+            return self._handle_translation_operations(file_path, operations, existing_translation)
+        
+        elif all(strategy == "delete_existing" for strategy in strategies):
+            # All operations are deletions
+            return {
+                "action": "kept_existing", 
+                "details": f"File content removed by {len(operations)} delete operations",
+                "operations_count": len(operations),
+                "strategies": strategies
+            }
+        
+        else:
+            # Mixed strategies - handle with smart operation-level processing
+            return self._handle_mixed_operations(file_path, operations, existing_translation)
+    
+    def _get_existing_translation(self, file_path: str) -> Optional[str]:
+        """Get existing Japanese translation content."""
+        try:
+            # Try to get current file content (existing translation)
+            current_content = self.git_utils.get_file_content(file_path, "HEAD")
+            return current_content
+        except Exception:
+            # No existing translation
+            return None
+    
+    def _write_file_content(self, file_path: str, content: str) -> None:
+        """Write content to file."""
+        output_path = Path(file_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+    
+    def _translate_file_content(self, file_path: str, operations: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Translate entire file content."""
+        # Get upstream content
+        upstream_content = self.git_utils.get_file_content(file_path, "upstream/main")
+        if upstream_content is None:
+            raise Exception(f"Could not get upstream content for {file_path}")
+        
+        # Translate content
+        translated_content = self.translator.translate_file_content(
+            upstream_content, 
+            context=f"File: {file_path}"
         )
         
-        if needs_translation:
-            # Get upstream content
-            upstream_content = self.git_utils.get_file_content(file_path, "upstream/main")
-            if upstream_content is None:
-                raise Exception(f"Could not get upstream content for {file_path}")
+        # Write translated content
+        self._write_file_content(file_path, translated_content)
+        
+        return {
+            "action": "translated",
+            "details": f"Translated entire file with {len(operations)} operations",
+            "operations_count": len(operations)
+        }
+    
+    def _handle_translation_operations(self, file_path: str, operations: List[Dict[str, Any]], 
+                                     existing_translation: Optional[str]) -> Dict[str, Any]:
+        """Handle operations that require translation with smart strategy selection."""
+        # Check for replace operations that might need LLM semantic analysis
+        replace_ops = [op for op in operations if op.get("operation") == "replace"]
+        
+        needs_llm_check = False
+        for op in replace_ops:
+            strategy = op.get("strategy", "retranslate")
+            similarity = op.get("similarity_ratio", 0.0)
             
-            # Translate content
-            translated_content = self.translator.translate_file_content(
-                upstream_content, 
-                context=f"File: {file_path}"
-            )
+            # If similarity is borderline or strategy is retranslate, consider LLM check
+            if strategy == "retranslate" and 0.8 <= similarity < self.similarity_threshold:
+                needs_llm_check = True
+                break
+        
+        # For replace operations near threshold, use LLM to check semantic change
+        if needs_llm_check and existing_translation:
+            old_content = "\n".join(replace_ops[0].get("old_lines", []))
+            new_content = "\n".join(replace_ops[0].get("new_lines", []))
             
-            # Write translated content
-            output_path = Path(file_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(translated_content)
-            
-            return {
-                "action": "translated",
-                "details": f"Translated {len(operations)} operations",
-                "operations_count": len(operations)
-            }
-        else:
-            # Keep existing content (all operations are keep_existing or delete_existing)
+            # LLM semantic change check (意味変化疑い時はLLMでYES/NO判定)
+            if self.translator.check_semantic_change(old_content, new_content):
+                # Semantic change detected - retranslate
+                return self._translate_file_content(file_path, operations)
+            else:
+                # No semantic change - preserve existing translation
+                self._write_file_content(file_path, existing_translation)
+                return {
+                    "action": "kept_existing_llm",
+                    "details": f"LLM determined no semantic change, preserved existing translation",
+                    "operations_count": len(operations),
+                    "llm_checked": True
+                }
+        
+        # Regular translation handling
+        return self._translate_file_content(file_path, operations)
+    
+    def _handle_mixed_operations(self, file_path: str, operations: List[Dict[str, Any]], 
+                                existing_translation: Optional[str]) -> Dict[str, Any]:
+        """Handle files with mixed operation types (equal/insert/delete/replace)."""
+        # Categorize operations by strategy
+        keep_ops = [op for op in operations if op.get("strategy") == "keep_existing"]
+        translate_ops = [op for op in operations if op.get("strategy") in ["translate_new", "retranslate"]]
+        delete_ops = [op for op in operations if op.get("strategy") == "delete_existing"]
+        
+        # If there are any operations requiring translation, translate the whole file
+        if translate_ops:
+            return self._translate_file_content(file_path, operations)
+        
+        # If only keep and delete operations, preserve existing where possible
+        if existing_translation and (keep_ops or delete_ops):
+            self._write_file_content(file_path, existing_translation)
             return {
                 "action": "kept_existing",
-                "details": "No translation needed",
-                "operations_count": len(operations)
+                "details": f"Mixed operations: kept existing for {len(keep_ops)} ops, deleted {len(delete_ops)} ops",
+                "operations_count": len(operations),
+                "mixed_strategies": True
             }
+        
+        # Fallback to translation
+        return self._translate_file_content(file_path, operations)
     
     def _copy_file(self, file_info: Dict[str, Any]) -> None:
         """Copy file without translation."""
