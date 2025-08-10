@@ -1,0 +1,3 @@
+# LLM Translation Pipeline Dependencies
+# Core dependencies
+click>=8.1.0
