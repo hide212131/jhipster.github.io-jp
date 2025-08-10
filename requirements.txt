@@ -1,0 +1,24 @@
+# LLM and AI dependencies
+google-generativeai>=0.3.0
+
+# Git operations
+GitPython>=3.1.0
+
+# CLI and utilities
+click>=8.1.0
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Code formatting and linting
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+
+# File and data processing
+PyYAML>=6.0.0
+python-dateutil>=2.8.0
+
+# HTTP requests (for GitHub API if needed)
+requests>=2.28.0
