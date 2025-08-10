@@ -42,9 +42,9 @@ class FileFilter:
         if self.is_translation_target(file_path):
             return False
         
-        # Check if it's an excluded extension
+        # Check if it's an excluded extension (should be ignored, not copied)
         if path.suffix.lower() in self.excluded_extensions:
-            return True
+            return False
         
         # Other files should be copied
         return True
@@ -57,6 +57,10 @@ class FileFilter:
         for excluded_path in self.excluded_paths:
             if excluded_path in str(path):
                 return True
+        
+        # Check excluded extensions
+        if path.suffix.lower() in self.excluded_extensions:
+            return True
         
         return False
     

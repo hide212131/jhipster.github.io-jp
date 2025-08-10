@@ -4,6 +4,7 @@ import click
 import json
 from typing import Dict, List, Any
 from pathlib import Path
+from datetime import datetime
 from git_utils import GitUtils
 from file_filters import FileFilter
 from line_diff import LineDiff
@@ -24,7 +25,7 @@ class ChangeDiscoverer:
         changes = {
             "upstream_ref": upstream_ref,
             "meta_branch": meta_branch,
-            "timestamp": "",
+            "timestamp": datetime.now().isoformat(),
             "files": {}
         }
         
@@ -50,20 +51,21 @@ class ChangeDiscoverer:
         try:
             # Get upstream content
             upstream_content = self.git_utils.get_file_content(file_path, upstream_ref)
-            if upstream_content is None:
+            # Get current content
+            current_content = self.git_utils.get_file_content(file_path, "HEAD")
+            
+            if upstream_content is None and current_content is not None:
                 return {
                     "path": file_path,
-                    "status": "added",
+                    "status": "deleted",  # File exists locally but not in upstream (was deleted upstream)
                     "operations": [],
                     "summary": {"total_operations": 0}
                 }
             
-            # Get current content
-            current_content = self.git_utils.get_file_content(file_path, "HEAD")
-            if current_content is None:
+            if upstream_content is not None and current_content is None:
                 return {
                     "path": file_path,
-                    "status": "deleted",
+                    "status": "added",  # File exists in upstream but not locally (was added upstream)
                     "operations": [],
                     "summary": {"total_operations": 0}
                 }
