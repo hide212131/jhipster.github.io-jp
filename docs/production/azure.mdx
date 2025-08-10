@@ -4,19 +4,18 @@ slug: /azure/
 last_update:
   date: 2023-12-19T00:00:00-00:00
 ---
-import EmbeddedVideo from '@site/src/components/EmbeddedVideo'
 
-[Microsoft Azure](https://azure.microsoft.com/overview/?WT.mc_id=online-jhipster-judubois)は、クラウドでJHipsterアプリケーションを実行するための優れたソリューションです。
 # <i class="fa fa-cloud-upload"></i> Microsoft Azureへのデプロイ
 
-- 最も簡単な方法は、[JHipster Azure Container Apps](https://github.com/Azure/generator-jhipster-azure-container-apps)を使用して、プロジェクトをエンドツーエンドで作成してデプロイすることです。JHipster Azure Container Appsは、フルスタックのSpringアプリケーション開発を合理化するように設計されており、[Azure Container Apps](https://learn.microsoft.com/azure/container-apps/java-overview)の堅牢なインフラストラクチャを活用して、これまでにない容易さと効率性でプロジェクトを実現します。
-- Spring Bootを使用している場合、[Azure Container Apps](https://azure.microsoft.com/products/container-apps)は、組み込みのJava機能を備え、JHipsterアプリケーションを完全にサポートしています。[クイックスタート](https://learn.microsoft.com/azure/container-apps/java-get-started)で詳細を読むことができます。
-- また、[Azure App Service](https://azure.microsoft.com/services/app-service/?WT.mc_id=online-jhipster-judubois)を使用して、モノリスをデプロイすることもできます。
-- 他のDockerおよびKubernetesクラウドプロバイダと同様に、JHipsterのDockerおよびKubernetesサポートを使用して、DockerイメージをMicrosoft Azureにデプロイできます。これらのオプションの詳細については、[Docker Composeドキュメント](/docker-compose/)および[Kubernetesドキュメント](/kubernetes/)を参照してください。
+[Microsoft Azure](https://azure.microsoft.com/overview/?WT.mc_id=online-jhipster-judubois)は、クラウドでJHipsterアプリケーションを実行するための優れたソリューションです。
 
-[![Microsoft Azure](/images/logo/logo-azure.png)](https://azure.microsoft.com/overview/?WT.mc_id=java-0000-judubois)
+- 最も簡単な方法は、[JHipster Azure Spring Apps](https://github.com/Azure/generator-jhipster-azure-spring-apps)を使用して、プロジェクトをエンドツーエンドで作成してデプロイすることです。 JHipster Azure Spring Appsは、フルスタックのSpringアプリケーション開発を合理化するように設計されており、Azure Spring Appsの堅牢なインフラストラクチャを活用して、これまでにない容易さと効率性でプロジェクトを実現します。
+- Spring Bootマイクロサービスを使用している場合、[Azure Spring Apps](https://azure.microsoft.com/services/spring-apps/?WT.mc_id=online-jhipster-judubois) はJHipsterアプリケーションを完全にサポートします。[Quickstart](https://learn.microsoft.com/azure/spring-apps/quickstart-deploy-microservice-apps)で詳細を読むことができます。
+- また、[Azure App Service](https://azure.microsoft.com/services/app-service/?WT.mc_id=online-jhipster-judubois)を使ってモノリスをデプロイすることもできます。
+- 他のDockerおよびKubernetesクラウドプロバイダと同様に、JHipster DockerおよびKubernetesサポートを使用して、DockerイメージをMicrosoft Azureにデプロイできます。これらのオプションの詳細については、[Docker Composeドキュメント](/docker-compose/)および[Kubernetesドキュメント](/kubernetes/)に従ってください。
 
-## NubesGenを使用したデプロイ
+
+<h2>NubesGenを使用したデプロイ</h2>
 
 [NubesGen](https://www.nubesgen.com)はJHipsterアプリケーションを完全にサポートするデプロイメントプラットフォームであり、アプリケーションをAzureにデプロイするための最良のソリューションです。
 
@@ -28,9 +27,18 @@ NubesGenを使用してJHipsterアプリケーションをデプロイするに�
 
 [NubesGenのWebサイト](https://www.nubesgen.com)にアクセスすると、完全なドキュメントが表示されます。
 
-
 ## start.jhipster.techで生成されたazdを使用したデプロイ
 
-[start.jhipster.tech/generate-azure-application](https://start.jhipster.tech/generate-azure-application) を通じて、Azure Container Appsへのazdデプロイメントが組み込まれた新しいJHipsterアプリケーションを作成することもできます。これは、デプロイメントテンプレートの恩恵を受け、'azd up' という1つの簡単なコマンドでデプロイできるオープンソースツールキットである[Azure Development CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/?WT.mc_id=java-0000-sakriema)を活用します。
+[start.jhipster.tech/generate-azure-application](https://start.jhipster.tech/generate-azure-application)経由で、Azure Spring Appsへの組み込みのazdデプロイメントを備えた、新しいJHipsterアプリケーションの作成もできます。デプロイメントテンプレートの恩恵により、`azd up` という1つの簡単なコマンドでデプロイできるオープンソースのツールキット Azure Development CLI を活用します。
 
-2024年11月21日公開
+<div class="thumbnail no-margin-bottom">
+    <div class="video-container">
+        <iframe width="420" height="315" src="https://www.youtube.com/embed/AmxPv_5Bs_k?si=HeDmf113Uld0bCbS&amp;start=33" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </div>
+    <div class="caption">
+        <h3 id="thumbnail-label">Azure Spring Apps の JHipster デモ<a class="anchorjs-link" href="#thumbnail-label"><span class="anchorjs-icon"></span></a></h3>
+        <p>この4分間のチュートリアルでは、 [start.jhipster.tech/generate-azure-application](https://start.jhipster.tech/generate-azure-application) を介し、Azure Spring Appsへの組み込みのazdデプロイメントを使用してJHipsterアプリケーションを生成する方法を説明します。</p>
+        <p>プレゼンター Sandra Ahlgrimm (<a href="https://twitter.com/skriemhild">@skriemhild</a>)</p>
+        <p>2023年9月26日 公開</p>
+    </div>
+</div>

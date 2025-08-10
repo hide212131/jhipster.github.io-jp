@@ -25,9 +25,3 @@ yarn-error.log*
 # NetBeans
 nbproject/
 
-# DirEnv
-.envrc
-
-# Auto-translation Python cache
-.github/auto-translation/__pycache__/
-.github/auto-translation/**/__pycache__/
