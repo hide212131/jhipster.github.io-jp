@@ -3,6 +3,7 @@
 import click
 import json
 import os
+import sys
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 from datetime import datetime
@@ -129,12 +130,7 @@ class SyncRunner:
             
             # Step 2: Discover changes with filters
             self._log_step(results, "discover", f"Discovering changes (limit: {limit}, before: {before_sha})")
-            changes = self.discoverer.discover_changes()
-            
-            # Apply filters for dev mode
-            if before_sha:
-                # TODO: Filter changes to only include those before specific SHA
-                pass
+            changes = self.discoverer.discover_changes(before_sha=before_sha)
             
             if paths:
                 # Filter by path patterns
@@ -209,10 +205,22 @@ def main(mode: str, branch: str, before_sha: str, limit: int, paths: str, output
     
     try:
         # Validate configuration
-        if not config.validate():
+        config_valid = config.validate()
+        if not config_valid:
             if mode == 'ci':
                 click.echo("Error: Configuration validation failed (missing API keys)", err=True)
-                return 1
+                # Still generate results file to indicate failure
+                if not output:
+                    output = str(config.output_dir / "sync_results.json")
+                error_results = {
+                    "mode": "ci",
+                    "error": "Configuration validation failed (missing API keys)",
+                    "steps": [],
+                    "timestamp": datetime.now().isoformat()
+                }
+                with open(output, 'w', encoding='utf-8') as f:
+                    json.dump(error_results, f, indent=2, ensure_ascii=False)
+                sys.exit(1)
             else:
                 click.echo("Warning: Some configuration missing, continuing in dev mode")
         

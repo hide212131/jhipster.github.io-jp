@@ -20,17 +20,18 @@ class ChangeDiscoverer:
         self.file_filter = FileFilter()
         self.line_diff = LineDiff()
     
-    def discover_changes(self, upstream_ref: str = "upstream/main", meta_branch: str = "translation-meta") -> Dict[str, Any]:
+    def discover_changes(self, upstream_ref: str = "upstream/main", meta_branch: str = "translation-meta", before_sha: str = None) -> Dict[str, Any]:
         """Discover changes between upstream and current state."""
         changes = {
             "upstream_ref": upstream_ref,
             "meta_branch": meta_branch,
+            "before_sha": before_sha,
             "timestamp": datetime.now().isoformat(),
             "files": {}
         }
         
-        # Get list of changed files from upstream
-        changed_files = self.git_utils.get_upstream_changes()
+        # Get list of changed files from upstream, optionally limited by before_sha
+        changed_files = self.git_utils.get_upstream_changes(since_sha=before_sha)
         
         # Filter files by type
         filtered_files = self.file_filter.filter_files(changed_files)

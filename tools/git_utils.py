@@ -31,8 +31,13 @@ class GitUtils:
     
     def get_upstream_changes(self, since_sha: Optional[str] = None) -> List[str]:
         """Get list of changed files from upstream."""
-        print("Would get upstream changes")
-        return ["docs/example.md", "docs/guide.md"]
+        if since_sha:
+            print(f"Would get upstream changes since SHA: {since_sha}")
+            # In dev mode with --before, return fewer files to simulate filtering
+            return ["docs/example.md"]
+        else:
+            print("Would get upstream changes")
+            return ["docs/example.md", "docs/guide.md"]
     
     def get_file_content(self, file_path: str, ref: str = "HEAD") -> Optional[str]:
         """Get file content from specific ref."""
