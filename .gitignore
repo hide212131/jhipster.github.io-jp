@@ -32,10 +32,18 @@ nbproject/
 .github/auto-translation/__pycache__/
 .github/auto-translation/**/__pycache__/
 
-# Tools Python cache
+# Tools Python cache and generated files
 tools/__pycache__/
+tools/**/__pycache__/
 tools/tests/__pycache__/
+tests/__pycache__/
+tests/**/__pycache__/
+debug_output/
 *.pyc
 *.pyo
 *.pyd
+.Python
+*.egg-info/
 .pytest_cache/
+.mypy_cache/
+.coverage

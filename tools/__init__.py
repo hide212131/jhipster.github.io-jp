@@ -1,0 +1,1 @@
+# Tools package for JHipster translation automation

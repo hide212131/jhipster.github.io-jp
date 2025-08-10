@@ -1,0 +1,23 @@
+# JHipster Translation Tools Requirements
+# Core dependencies for translation automation
+
+# LLM integration
+google-generativeai>=0.3.0
+
+# Text processing and utilities
+rich>=13.0.0
+unidiff>=0.7.0
+python-slugify>=8.0.0
+
+# Development and testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.10.0
+
+# Code quality
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# Git operations (included in Python stdlib, but listed for clarity)
+# gitpython>=3.1.0  # Alternative if needed
