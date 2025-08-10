@@ -219,6 +219,64 @@ make commit
 
 **注意**: 自動翻訳システムは`.github/auto-translation`ディレクトリ内で完結して管理されており、メインプロジェクトのファイル構成に影響しません。
 
+## Secrets運用方針
+
+### GEMINI_API_KEY の取り扱いについて
+
+**重要**: このリポジトリでは以下のSecrets運用方針を採用しています：
+
+- ✅ **上流リポジトリのみ**: `GEMINI_API_KEY` はメインリポジトリでのみ使用
+- ❌ **フォークでは無効**: フォークされたリポジトリでは自動翻訳は利用不可
+- ❌ **PRでは無効**: プルリクエストイベントでは `GEMINI_API_KEY` は参照不可
+
+これにより、機密情報の漏洩を防ぎつつ、安全な自動翻訳システムを運用しています。
+
+詳細については `SECURITY.md` を参照してください。
+
+## GitHub CLI の活用
+
+### PR作成での使用
+
+このプロジェクトでは、効率的なPR作成のためにGitHub CLI (`gh`) の使用を推奨します：
+
+```bash
+# GitHub CLI のインストール確認
+gh --version
+
+# PR作成
+gh pr create --title "機能: 新機能の追加" --body "変更内容の詳細説明"
+
+# ドラフトPRとして作成
+gh pr create --draft --title "WIP: 作業中の機能"
+
+# PR状態確認
+gh pr status
+
+# PR一覧表示
+gh pr list --state open
+
+# PRレビュー
+gh pr review --approve
+gh pr review --request-changes --body "修正が必要です"
+```
+
+### ラベル管理
+
+リポジトリでは以下のラベルを使用します：
+
+- `area:translation-pipeline`: 自動翻訳パイプライン関連
+- `agent:copilot`: GitHub Copilotによる支援
+- `priority:P2`: 中優先度
+- `ci`: CI/CD関連  
+- `security`: セキュリティ関連
+
+```bash
+# Issueにラベル追加
+gh issue edit [issue-number] --add-label "area:translation-pipeline,priority:P2"
+```
+
+詳細な開発ガイドラインは `CONTRIBUTING.md` を参照してください。
+
 ### 貢献
 
 自動翻訳システムの改善提案やバグ報告は、GitHubのIssueでお知らせください。
