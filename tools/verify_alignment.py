@@ -69,59 +69,75 @@ class AlignmentVerifier:
     
     def _verify_structure(self, original_lines: List[str], translated_lines: List[str], result: Dict[str, Any]) -> bool:
         """Verify structural elements match."""
-        if len(original_lines) != len(translated_lines):
-            return False
-        
         issues = []
         
-        for i, (orig, trans) in enumerate(zip(original_lines, translated_lines)):
+        # Process all lines, even if counts differ
+        max_lines = max(len(original_lines), len(translated_lines))
+        
+        for i in range(max_lines):
             line_num = i + 1
+            orig = original_lines[i] if i < len(original_lines) else ""
+            trans = translated_lines[i] if i < len(translated_lines) else ""
             
             # Check headings
             orig_heading = re.match(r'^(#{1,6})\s+', orig)
             trans_heading = re.match(r'^(#{1,6})\s+', trans)
             
             if orig_heading and not trans_heading:
-                issues.append(f"Line {line_num}: Missing heading marker in translation")
+                if i >= len(translated_lines):
+                    issues.append(f"Line {line_num}: Missing heading marker (translated file too short)")
+                else:
+                    issues.append(f"Line {line_num}: Missing heading marker in translation")
             elif not orig_heading and trans_heading:
-                issues.append(f"Line {line_num}: Unexpected heading marker in translation")
+                if i >= len(original_lines):
+                    issues.append(f"Line {line_num}: Unexpected heading marker (original file too short)")
+                else:
+                    issues.append(f"Line {line_num}: Unexpected heading marker in translation")
             elif orig_heading and trans_heading:
                 if len(orig_heading.group(1)) != len(trans_heading.group(1)):
-                    issues.append(f"Line {line_num}: Heading level mismatch")
+                    issues.append(f"Line {line_num}: Heading level mismatch (original: {len(orig_heading.group(1))}, translated: {len(trans_heading.group(1))})")
             
             # Check list items
             orig_list = re.match(r'^(\s*)([-*+]|\d+\.)\s+', orig)
             trans_list = re.match(r'^(\s*)([-*+]|\d+\.)\s+', trans)
             
             if orig_list and not trans_list:
-                issues.append(f"Line {line_num}: Missing list marker in translation")
+                if i >= len(translated_lines):
+                    issues.append(f"Line {line_num}: Missing list marker (translated file too short)")
+                else:
+                    issues.append(f"Line {line_num}: Missing list marker in translation")
             elif not orig_list and trans_list:
-                issues.append(f"Line {line_num}: Unexpected list marker in translation")
+                if i >= len(original_lines):
+                    issues.append(f"Line {line_num}: Unexpected list marker (original file too short)")
+                else:
+                    issues.append(f"Line {line_num}: Unexpected list marker in translation")
             elif orig_list and trans_list:
                 # Check indentation
                 if len(orig_list.group(1)) != len(trans_list.group(1)):
-                    issues.append(f"Line {line_num}: List indentation mismatch")
+                    issues.append(f"Line {line_num}: List indentation mismatch (original: {len(orig_list.group(1))}, translated: {len(trans_list.group(1))})")
             
             # Check blockquotes
             orig_quote = orig.strip().startswith('>')
             trans_quote = trans.strip().startswith('>')
             
             if orig_quote != trans_quote:
-                issues.append(f"Line {line_num}: Blockquote mismatch")
+                if i >= len(translated_lines):
+                    issues.append(f"Line {line_num}: Blockquote mismatch (translated file too short)")
+                elif i >= len(original_lines):
+                    issues.append(f"Line {line_num}: Blockquote mismatch (original file too short)")
+                else:
+                    issues.append(f"Line {line_num}: Blockquote mismatch")
         
         result["issues"].extend(issues)
         return len(issues) == 0
     
     def _verify_code_fences(self, original_lines: List[str], translated_lines: List[str], result: Dict[str, Any]) -> bool:
         """Verify code fence integrity."""
-        if len(original_lines) != len(translated_lines):
-            return False
-        
         issues = []
         orig_fences = []
         trans_fences = []
         
-        # Collect code fence positions
+        # Collect code fence positions from both files, even if line counts differ
         for i, line in enumerate(original_lines):
             if re.match(r'^\s*```', line):
                 orig_fences.append((i, line.strip()))
@@ -135,26 +151,44 @@ class AlignmentVerifier:
         # Compare fence positions and content
         if len(orig_fences) != len(trans_fences):
             issues.append(f"Code fence count mismatch: original {len(orig_fences)}, translated {len(trans_fences)}")
-        else:
-            for (orig_pos, orig_fence), (trans_pos, trans_fence) in zip(orig_fences, trans_fences):
-                if orig_pos != trans_pos:
-                    issues.append(f"Code fence position mismatch at line {orig_pos + 1}")
-                if orig_fence != trans_fence:
-                    issues.append(f"Code fence content mismatch at line {orig_pos + 1}")
+        
+        # Check fence alignment even with different line counts
+        min_fences = min(len(orig_fences), len(trans_fences))
+        for i in range(min_fences):
+            orig_pos, orig_fence = orig_fences[i]
+            trans_pos, trans_fence = trans_fences[i]
+            
+            if orig_pos != trans_pos:
+                issues.append(f"Code fence position mismatch at line {orig_pos + 1} (original) vs line {trans_pos + 1} (translated)")
+            if orig_fence != trans_fence:
+                issues.append(f"Code fence content mismatch at line {orig_pos + 1}: '{orig_fence}' vs '{trans_fence}'")
+        
+        # Report extra fences
+        if len(orig_fences) > min_fences:
+            for i in range(min_fences, len(orig_fences)):
+                pos, fence = orig_fences[i]
+                issues.append(f"Missing code fence in translated file: line {pos + 1} '{fence}'")
+        
+        if len(trans_fences) > min_fences:
+            for i in range(min_fences, len(trans_fences)):
+                pos, fence = trans_fences[i]
+                issues.append(f"Extra code fence in translated file: line {pos + 1} '{fence}'")
         
         result["issues"].extend(issues)
         return len(issues) == 0
     
     def _verify_tables(self, original_lines: List[str], translated_lines: List[str], result: Dict[str, Any]) -> bool:
         """Verify table structure."""
-        if len(original_lines) != len(translated_lines):
-            return False
-        
         issues = []
         table_lines = 0
         
-        for i, (orig, trans) in enumerate(zip(original_lines, translated_lines)):
+        # Process all lines, even if counts differ
+        max_lines = max(len(original_lines), len(translated_lines))
+        
+        for i in range(max_lines):
             line_num = i + 1
+            orig = original_lines[i] if i < len(original_lines) else ""
+            trans = translated_lines[i] if i < len(translated_lines) else ""
             
             # Check if line contains table separators
             orig_is_table = '|' in orig
@@ -164,7 +198,10 @@ class AlignmentVerifier:
                 table_lines += 1
                 
                 if not trans_is_table:
-                    issues.append(f"Line {line_num}: Missing table structure in translation")
+                    if i >= len(translated_lines):
+                        issues.append(f"Line {line_num}: Missing table structure (translated file too short)")
+                    else:
+                        issues.append(f"Line {line_num}: Missing table structure in translation")
                 else:
                     # Count pipe characters
                     orig_pipes = orig.count('|')
@@ -178,7 +215,10 @@ class AlignmentVerifier:
                         if not re.match(r'^\s*\|[\s:|-]+\|\s*$', trans):
                             issues.append(f"Line {line_num}: Table alignment row mismatch")
             elif trans_is_table:
-                issues.append(f"Line {line_num}: Unexpected table structure in translation")
+                if i >= len(original_lines):
+                    issues.append(f"Line {line_num}: Unexpected table structure (original file too short)")
+                else:
+                    issues.append(f"Line {line_num}: Unexpected table structure in translation")
         
         result["statistics"]["tables"] = table_lines
         result["issues"].extend(issues)
@@ -186,14 +226,16 @@ class AlignmentVerifier:
     
     def _verify_trailing_spaces(self, original_lines: List[str], translated_lines: List[str], result: Dict[str, Any]) -> bool:
         """Verify trailing spaces (markdown line breaks)."""
-        if len(original_lines) != len(translated_lines):
-            return False
-        
         issues = []
         trailing_space_lines = 0
         
-        for i, (orig, trans) in enumerate(zip(original_lines, translated_lines)):
+        # Process all lines, even if counts differ
+        max_lines = max(len(original_lines), len(translated_lines))
+        
+        for i in range(max_lines):
             line_num = i + 1
+            orig = original_lines[i] if i < len(original_lines) else ""
+            trans = translated_lines[i] if i < len(translated_lines) else ""
             
             orig_trailing = orig.endswith('  ')
             trans_trailing = trans.endswith('  ')
@@ -202,9 +244,15 @@ class AlignmentVerifier:
                 trailing_space_lines += 1
                 
                 if not trans_trailing:
-                    issues.append(f"Line {line_num}: Missing trailing spaces in translation")
+                    if i >= len(translated_lines):
+                        issues.append(f"Line {line_num}: Missing trailing spaces (translated file too short)")
+                    else:
+                        issues.append(f"Line {line_num}: Missing trailing spaces in translation")
             elif trans_trailing:
-                issues.append(f"Line {line_num}: Unexpected trailing spaces in translation")
+                if i >= len(original_lines):
+                    issues.append(f"Line {line_num}: Unexpected trailing spaces (original file too short)")
+                else:
+                    issues.append(f"Line {line_num}: Unexpected trailing spaces in translation")
         
         result["statistics"]["trailing_spaces"] = trailing_space_lines
         result["issues"].extend(issues)
@@ -327,7 +375,8 @@ def main(original: str, translated: str, output: str, output_format: str, fail_o
         
         # Return appropriate exit code
         if fail_on_issues and summary["total_issues"] > 0:
-            return 1
+            import sys
+            sys.exit(1)
         
         return 0
         
@@ -337,4 +386,5 @@ def main(original: str, translated: str, output: str, output_format: str, fail_o
 
 
 if __name__ == '__main__':
-    exit(main())
+    import sys
+    sys.exit(main())
