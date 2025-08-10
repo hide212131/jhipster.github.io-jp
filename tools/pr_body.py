@@ -15,7 +15,7 @@ class PRBodyGenerator:
         """Initialize PR body generator."""
         pass
     
-    def generate_pr_body(self, changes_file: str, apply_results_file: str = None) -> str:
+    def generate_pr_body(self, changes_file: str, apply_results_file: str = None, report_file: str = None) -> str:
         """Generate PR body from changes and results."""
         # Load changes
         with open(changes_file, 'r', encoding='utf-8') as f:
@@ -27,6 +27,12 @@ class PRBodyGenerator:
             with open(apply_results_file, 'r', encoding='utf-8') as f:
                 apply_results = json.load(f)
         
+        # Load report.json if available
+        report_data = None
+        if report_file and Path(report_file).exists():
+            with open(report_file, 'r', encoding='utf-8') as f:
+                report_data = json.load(f)
+        
         # Generate PR body
         body_parts = []
         
@@ -37,10 +43,10 @@ class PRBodyGenerator:
         body_parts.append("")
         
         # Summary section
-        body_parts.extend(self._generate_summary_section(changes, apply_results))
+        body_parts.extend(self._generate_summary_section(changes, apply_results, report_data))
         
         # File changes section
-        body_parts.extend(self._generate_file_changes_section(changes))
+        body_parts.extend(self._generate_file_changes_section(changes, report_data))
         
         # Links section
         body_parts.extend(self._generate_links_section(changes))
@@ -55,7 +61,7 @@ class PRBodyGenerator:
         
         return '\n'.join(body_parts)
     
-    def _generate_summary_section(self, changes: Dict[str, Any], apply_results: Dict[str, Any] = None) -> List[str]:
+    def _generate_summary_section(self, changes: Dict[str, Any], apply_results: Dict[str, Any] = None, report_data: Dict[str, Any] = None) -> List[str]:
         """Generate summary section."""
         lines = []
         lines.append("## 📊 Summary")
@@ -70,57 +76,116 @@ class PRBodyGenerator:
         lines.append(f"- **Copy-only files**: {file_counts.get('copy_only', 0)} files")
         lines.append(f"- **Ignored files**: {file_counts.get('ignore', 0)} files")
         
+        # Add report.json aggregated statistics if available
+        if report_data and "summary" in report_data:
+            lines.append("")
+            lines.append("### 📈 Aggregated Statistics (from report.json)")
+            summary = report_data["summary"]
+            
+            # File operations summary
+            if "files" in summary:
+                files_summary = summary["files"]
+                lines.append(f"- **Inserted**: {files_summary.get('inserted', 0)} files")
+                lines.append(f"- **Replaced**: {files_summary.get('replaced', 0)} files")  
+                lines.append(f"- **Kept**: {files_summary.get('kept', 0)} files")
+                lines.append(f"- **Deleted**: {files_summary.get('deleted', 0)} files")
+                lines.append(f"- **Non-doc copied**: {files_summary.get('nondoc_copied', 0)} files")
+            
+            # Operations summary
+            if "operations" in summary:
+                ops_summary = summary["operations"]
+                lines.append("")
+                lines.append("**Operations:**")
+                lines.append(f"- **LLM calls**: {ops_summary.get('llm_calls', 0)}")
+                lines.append(f"- **Retries**: {ops_summary.get('retries', 0)}")
+                lines.append(f"- **Cache hits**: {ops_summary.get('cache_hits', 0)}")
+                lines.append(f"- **Processing time**: {ops_summary.get('total_processing_time', 0):.1f}s")
+        
         if apply_results:
             stats = apply_results.get("statistics", {})
             lines.append("")
-            lines.append("### Processing Results")
-            lines.append(f"- ✅ **Translated**: {stats.get('translated', 0)} files")
-            lines.append(f"- 📋 **Copied**: {stats.get('copied', 0)} files")
-            lines.append(f"- ♻️ **Kept existing**: {stats.get('kept_existing', 0)} files")
-            lines.append(f"- ❌ **Errors**: {len(apply_results.get('errors', []))} files")
+            lines.append("### 🔄 Processing Results")
+            if "files" in stats:
+                files_stats = stats["files"]
+                lines.append(f"- ✅ **Translated**: {files_stats.get('translated', 0)} files")
+                lines.append(f"- 📋 **Copied**: {files_stats.get('copied', 0)} files")
+                lines.append(f"- ♻️ **Kept existing**: {files_stats.get('kept_existing', 0)} files")
+                lines.append(f"- ❌ **Errors**: {files_stats.get('errors', 0)} files")
+            else:
+                # Fallback to old format
+                lines.append(f"- ✅ **Translated**: {stats.get('translated', 0)} files")
+                lines.append(f"- 📋 **Copied**: {stats.get('copied', 0)} files")
+                lines.append(f"- ♻️ **Kept existing**: {stats.get('kept_existing', 0)} files")
+                lines.append(f"- ❌ **Errors**: {len(apply_results.get('errors', []))} files")
         
         lines.append("")
         return lines
     
-    def _generate_file_changes_section(self, changes: Dict[str, Any]) -> List[str]:
+    def _generate_file_changes_section(self, changes: Dict[str, Any], report_data: Dict[str, Any] = None) -> List[str]:
         """Generate detailed file changes section."""
         lines = []
         lines.append("## 📋 File Changes")
         lines.append("")
         
-        # Translation files
+        # Enhanced translation files table with all required information
         translate_files = changes["files"].get("translate", [])
         if translate_files:
             lines.append("### 🌐 Translation Files")
             lines.append("")
-            lines.append("| File | Status | Operations | Added | Removed | Modified |")
-            lines.append("|------|--------|------------|-------|---------|----------|")
+            lines.append("| File | Status | Strategy | Lines Diff | SHA | Commit |")
+            lines.append("|------|--------|----------|------------|-----|--------|")
             
             for file_info in translate_files:
                 path = file_info["path"]
-                status = file_info["status"]
-                summary = file_info.get("summary", {})
+                status = file_info.get("status", "unknown")
+                strategy = file_info.get("strategy", "unknown")
                 
-                operations = summary.get("total_operations", 0)
-                added = summary.get("added_lines", 0)
-                removed = summary.get("removed_lines", 0)
-                modified = summary.get("modified_lines", 0)
+                # Calculate line diff
+                lines_before = file_info.get("total_lines_before", 0)
+                lines_after = file_info.get("total_lines_after", 0)
+                added = file_info.get("lines_added", 0)
+                removed = file_info.get("lines_removed", 0)
+                line_diff = f"+{added}/-{removed} ({lines_before}→{lines_after})"
                 
-                lines.append(f"| `{path}` | {status} | {operations} | +{added} | -{removed} | ~{modified} |")
+                # SHA and commit link
+                sha = file_info.get("upstream_sha", "unknown")[:8]
+                commit_url = file_info.get("upstream_commit_url", "")
+                commit_link = f"[{sha}]({commit_url})" if commit_url else sha
+                
+                lines.append(f"| `{path}` | {status} | {strategy} | {line_diff} | {sha} | {commit_link} |")
             
             lines.append("")
         
-        # Copy-only files
+        # Enhanced copy-only files section
         copy_files = changes["files"].get("copy_only", [])
         if copy_files:
             lines.append("### 📄 Copy-Only Files")
             lines.append("")
+            lines.append("| File | Status | SHA | Commit |")
+            lines.append("|------|--------|-----|--------|")
             
             for file_info in copy_files:
                 path = file_info["path"]
-                status = file_info["status"]
-                lines.append(f"- `{path}` ({status})")
+                status = file_info.get("status", "unknown")
+                sha = file_info.get("upstream_sha", "unknown")[:8]
+                commit_url = file_info.get("upstream_commit_url", "")
+                commit_link = f"[{sha}]({commit_url})" if commit_url else sha
+                
+                lines.append(f"| `{path}` | {status} | {sha} | {commit_link} |")
             
+            lines.append("")
+        
+        # Deleted files section (if any)
+        deleted_files = [f for f in translate_files if f.get("status") == "deleted"]
+        if deleted_files:
+            lines.append("### 🗑️ Deleted Files")
+            lines.append("")
+            for file_info in deleted_files:
+                path = file_info["path"]
+                sha = file_info.get("upstream_sha", "unknown")[:8]
+                commit_url = file_info.get("upstream_commit_url", "")
+                commit_link = f"[{sha}]({commit_url})" if commit_url else sha
+                lines.append(f"- `{path}` (deleted in {commit_link})")
             lines.append("")
         
         return lines
@@ -180,10 +245,11 @@ class PRBodyGenerator:
 @click.command()
 @click.option('--changes-file', '-c', required=True, help='Changes file from discover_changes')
 @click.option('--apply-results', '-r', help='Apply results file from apply_changes')
+@click.option('--report-file', help='Report.json file for aggregated statistics')
 @click.option('--output', '-o', help='Output file for PR body (default: .out/pr_body.md)')
 @click.option('--template', help='Custom template file for PR body')
 @click.help_option('--help', '-h')
-def main(changes_file: str, apply_results: str, output: str, template: str):
+def main(changes_file: str, apply_results: str, report_file: str, output: str, template: str):
     """Generate PR body for translation changes.
     
     This tool generates a comprehensive PR description including file changes,
@@ -192,7 +258,8 @@ def main(changes_file: str, apply_results: str, output: str, template: str):
     Examples:
         python pr_body.py -c .out/changes.json
         python pr_body.py -c changes.json -r apply_results.json
-        python pr_body.py -c changes.json -o my_pr_body.md
+        python pr_body.py -c changes.json --report-file report.json
+        python pr_body.py -c changes.json -r apply_results.json --report-file report.json -o my_pr_body.md
     """
     
     try:
@@ -208,10 +275,12 @@ def main(changes_file: str, apply_results: str, output: str, template: str):
         click.echo(f"Generating PR body from: {changes_file}")
         if apply_results:
             click.echo(f"Including apply results from: {apply_results}")
+        if report_file:
+            click.echo(f"Including report data from: {report_file}")
         
         # Generate PR body
         generator = PRBodyGenerator()
-        pr_body = generator.generate_pr_body(changes_file, apply_results)
+        pr_body = generator.generate_pr_body(changes_file, apply_results, report_file)
         
         # Write output
         output_path = Path(output)
