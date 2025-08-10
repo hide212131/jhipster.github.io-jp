@@ -1,0 +1,177 @@
+name: LLM Translation Sync
+
+# This workflow handles LLM-powered translation sync from upstream JHipster docs
+# It complements the basic sync-upstream.yml by adding intelligent translation
+# Run time is offset by 1 hour to avoid conflicts with sync-upstream.yml
+on:
+  schedule:
+    # Run every Monday at 01:00 UTC (10:00 JST) - 1 hour after sync-upstream.yml
+    - cron: '0 1 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Create draft PR instead of regular PR'
+        required: false
+        default: 'false'
+        type: boolean
+      upstream_ref:
+        description: 'Upstream ref to sync from (default: upstream/main)'
+        required: false
+        default: 'upstream/main'
+        type: string
+
+jobs:
+  sync:
+    # Only run on the main repository, not on forks
+    if: github.repository == 'hide212131/jhipster.github.io-jp'
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd tools
+        pip install -r requirements.txt
+
+    - name: Set up Git
+      run: |
+        git config --global user.name 'LLM Translation Bot'
+        git config --global user.email 'actions+llm-translation@users.noreply.github.com'
+
+    - name: Add upstream remote and fetch
+      run: |
+        git remote add upstream https://github.com/jhipster/jhipster.github.io.git || true
+        git fetch upstream
+        git fetch origin translation-meta || echo "No translation-meta branch yet"
+
+    - name: Create output directory
+      run: mkdir -p tools/.out
+
+    - name: Run LLM translation sync
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cd tools
+        
+        # Validate that we have the required API key in CI mode
+        if [ -z "$GEMINI_API_KEY" ]; then
+          echo "Error: GEMINI_API_KEY secret is not configured"
+          echo "Please add GEMINI_API_KEY to repository secrets"
+          exit 1
+        fi
+        
+        # Run the sync with proper error handling
+        if ! python run_sync.py --mode ci --output .out/sync_results.json; then
+          echo "Sync failed, check logs above"
+          exit 1
+        fi
+
+    - name: Check if PR is needed
+      id: check_pr
+      run: |
+        if [ -f "tools/.out/sync_results.json" ]; then
+          # Check if sync was successful and if PR is needed
+          if python -c "import json; data=json.load(open('tools/.out/sync_results.json')); exit(1 if data.get('error') else 0)"; then
+            PR_NEEDED=$(python -c "import json; data=json.load(open('tools/.out/sync_results.json')); print('true' if data.get('pr_needed', False) else 'false')")
+            echo "pr_needed=$PR_NEEDED" >> $GITHUB_OUTPUT
+            
+            if [ "$PR_NEEDED" = "true" ]; then
+              BRANCH_NAME=$(python -c "import json; data=json.load(open('tools/.out/sync_results.json')); print(data.get('branch_name', 'translate/sync-unknown'))")
+              echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+              echo "Sync completed successfully, PR needed for branch: $BRANCH_NAME"
+            else
+              echo "Sync completed successfully, no changes detected"
+            fi
+          else
+            echo "Sync completed with errors, no PR will be created"
+            echo "pr_needed=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "No sync results file found, assuming no changes"
+          echo "pr_needed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Pull Request
+      if: steps.check_pr.outputs.pr_needed == 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        BRANCH_NAME="${{ steps.check_pr.outputs.branch_name }}"
+        
+        # Set PR title
+        PR_TITLE="🤖 LLM Translation Sync: $(date '+%Y-%m-%d %H:%M')"
+        
+        # Check if this is a dry run
+        DRY_RUN="${{ inputs.dry_run || 'false' }}"
+        
+        # Prepare PR creation command
+        PR_CMD="gh pr create --title \"$PR_TITLE\" --base main --head \"$BRANCH_NAME\" --repo ${{ github.repository }}"
+        
+        # Add draft flag if dry run
+        if [ "$DRY_RUN" = "true" ]; then
+          PR_CMD="$PR_CMD --draft"
+          PR_TITLE="[DRAFT] $PR_TITLE"
+        fi
+        
+        # Add body if available
+        if [ -f "tools/.out/pr_body.md" ]; then
+          PR_CMD="$PR_CMD --body-file tools/.out/pr_body.md"
+        else
+          # Fallback body
+          echo "自動翻訳同期による更新です。" > tools/.out/fallback_body.md
+          echo "" >> tools/.out/fallback_body.md
+          echo "## 概要" >> tools/.out/fallback_body.md
+          echo "- ブランチ: $BRANCH_NAME" >> tools/.out/fallback_body.md
+          echo "- 実行時刻: $(date)" >> tools/.out/fallback_body.md
+          echo "- Dry Run: $DRY_RUN" >> tools/.out/fallback_body.md
+          PR_CMD="$PR_CMD --body-file tools/.out/fallback_body.md"
+        fi
+        
+        # Execute PR creation
+        eval $PR_CMD
+
+    - name: Upload artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: sync-results-${{ github.run_id }}
+        path: |
+          tools/.out/
+        retention-days: 30
+
+    - name: Report sync results
+      if: always()
+      run: |
+        echo "=== LLM Translation Sync Results ==="
+        if [ -f "tools/.out/sync_results.json" ]; then
+          echo "Sync results:"
+          cat tools/.out/sync_results.json | python -m json.tool
+        else
+          echo "No sync results file found"
+        fi
+        
+        echo ""
+        echo "=== Output files ==="
+        ls -la tools/.out/ || echo "No output directory"
+        
+        if [ "${{ steps.check_pr.outputs.pr_needed }}" = "true" ]; then
+          echo ""
+          echo "✅ PR created for branch: ${{ steps.check_pr.outputs.branch_name }}"
+        else
+          echo ""
+          echo "ℹ️ No changes detected, no PR needed"
+        fi

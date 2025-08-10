@@ -1,6 +1,77 @@
 {
+  "upstream_ref": "upstream/main",
+  "meta_branch": "translation-meta",
+  "before_sha": null,
+  "timestamp": "2025-08-10T14:54:27.823697",
   "files": {
-    "translate": [],
+    "translate": [
+      {
+        "path": "docs/example.md",
+        "status": "modified",
+        "operations": [
+          {
+            "operation": "equal",
+            "old_start": 0,
+            "old_end": 2,
+            "new_start": 0,
+            "new_end": 2,
+            "old_lines": [
+              "# Example content",
+              "This is example content."
+            ],
+            "new_lines": [
+              "# Example content",
+              "This is example content."
+            ],
+            "similarity_ratio": 0.0,
+            "change_type": "unchanged",
+            "strategy": "keep_existing"
+          }
+        ],
+        "summary": {
+          "total_operations": 1,
+          "unchanged_lines": 2,
+          "added_lines": 0,
+          "removed_lines": 0,
+          "modified_lines": 0,
+          "minor_edits": 0,
+          "major_changes": 0
+        }
+      },
+      {
+        "path": "docs/guide.md",
+        "status": "modified",
+        "operations": [
+          {
+            "operation": "equal",
+            "old_start": 0,
+            "old_end": 2,
+            "new_start": 0,
+            "new_end": 2,
+            "old_lines": [
+              "# Example content",
+              "This is example content."
+            ],
+            "new_lines": [
+              "# Example content",
+              "This is example content."
+            ],
+            "similarity_ratio": 0.0,
+            "change_type": "unchanged",
+            "strategy": "keep_existing"
+          }
+        ],
+        "summary": {
+          "total_operations": 1,
+          "unchanged_lines": 2,
+          "added_lines": 0,
+          "removed_lines": 0,
+          "modified_lines": 0,
+          "minor_edits": 0,
+          "major_changes": 0
+        }
+      }
+    ],
     "copy_only": [],
     "ignore": []
   }
