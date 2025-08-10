@@ -378,53 +378,6 @@ class LinewiseTranslator:
         
         return translated_text, results
     
-    def detect_structured_format(self, content: str) -> bool:
-        """L0001=形式の構造化フォーマットを検出"""
-        lines = content.strip().split('\n')
-        if not lines:
-            return False
-        
-        # 最初の数行をチェック
-        structured_lines = 0
-        for line in lines[:5]:  # 最初の5行をチェック
-            if re.match(r'^L\d{4}=', line.strip()):
-                structured_lines += 1
-        
-        # 50%以上がL0001=形式なら構造化フォーマットと判定
-        return structured_lines >= min(len(lines), 3) * 0.5
-    
-    def parse_structured_input(self, content: str) -> List[str]:
-        """L0001=形式の入力を解析してMarkdown行リストに変換"""
-        lines = content.strip().split('\n')
-        parsed_lines = []
-        
-        for line in lines:
-            line = line.strip()
-            if not line:
-                parsed_lines.append('')
-                continue
-            
-            # L0001=... 形式を解析
-            match = re.match(r'^L(\d+)=(.*)$', line)
-            if match:
-                line_num = int(match.group(1))
-                content_part = match.group(2)
-                parsed_lines.append(content_part)
-            else:
-                # 構造化されていない行はそのまま
-                parsed_lines.append(line)
-        
-        return parsed_lines
-    
-    def format_structured_output(self, lines: List[str]) -> str:
-        """Markdown行リストをL0001=形式に変換"""
-        formatted_lines = []
-        for i, line in enumerate(lines, 1):
-            line_id = f"L{i:04d}"
-            formatted_lines.append(f"{line_id}={line}")
-        
-        return '\n'.join(formatted_lines)
-
     def translate_file(self, input_path: str, output_path: Optional[str] = None) -> bool:
         """ファイル翻訳"""
         try:
@@ -434,19 +387,8 @@ class LinewiseTranslator:
             
             print(f"📝 Translating file: {input_path}")
             
-            # 入力形式の検出
-            is_structured_input = self.detect_structured_format(content)
-            if is_structured_input:
-                print("   🔧 Detected structured L0001= format input")
-                # 構造化入力を解析
-                markdown_lines = self.parse_structured_input(content)
-                markdown_content = '\n'.join(markdown_lines)
-            else:
-                print("   📄 Processing as regular markdown")
-                markdown_content = content
-            
             # 翻訳実行
-            translated_content, results = self.translate_text(markdown_content)
+            translated_content, results = self.translate_text(content)
             
             # 統計情報
             total_lines = len(results)
@@ -461,31 +403,19 @@ class LinewiseTranslator:
             print(f"      Total placeholders: {total_placeholders}")
             
             # 行数検証
-            if is_structured_input:
-                original_line_count = len(markdown_content.split('\n'))
-            else:
-                original_line_count = len(content.split('\n'))
+            original_line_count = len(content.split('\n'))
             translated_line_count = len(translated_content.split('\n'))
             
             if original_line_count != translated_line_count:
                 print(f"❌ Line count mismatch: {original_line_count} -> {translated_line_count}")
                 return False
             
-            # 出力形式の決定と出力
+            # ファイル出力
             if output_path is None:
                 output_path = input_path
             
-            if is_structured_input:
-                # 構造化フォーマットで出力
-                translated_lines = translated_content.split('\n')
-                final_output = self.format_structured_output(translated_lines)
-                print("   🔧 Outputting in structured L0001= format")
-            else:
-                # 通常のMarkdownで出力
-                final_output = translated_content
-            
             with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(final_output)
+                f.write(translated_content)
             
             print(f"✅ Translation completed: {output_path}")
             return True
