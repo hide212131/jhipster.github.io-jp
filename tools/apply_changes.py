@@ -6,6 +6,7 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 from git_utils import GitUtils
 from translate_blockwise import BlockwiseTranslator
+from manifest_manager import ManifestManager
 from config import config
 
 
@@ -16,6 +17,7 @@ class ChangeApplicator:
         """Initialize change applicator."""
         self.git_utils = GitUtils()
         self.translator = BlockwiseTranslator()
+        self.manifest_manager = ManifestManager(self.git_utils)
         self.similarity_threshold = 0.98  # Threshold for minor changes (軽微変更)
     
     def apply_changes(self, changes_file: str, target_files: List[str] = None) -> Dict[str, Any]:
@@ -53,6 +55,22 @@ class ChangeApplicator:
                     "result": result
                 })
                 
+                # Update manifest after successful processing
+                if result["action"] in ["translated", "kept_existing", "kept_existing_llm"]:
+                    upstream_sha = file_info.get("current_upstream_sha")
+                    strategy = result.get("final_strategy", "translated")
+                    
+                    if upstream_sha:
+                        self.manifest_manager.update_file_entry(
+                            file_path, 
+                            upstream_sha, 
+                            strategy,
+                            {
+                                "operations_count": result.get("operations_count", 0),
+                                "action": result["action"]
+                            }
+                        )
+                
                 # Update statistics
                 if result["action"] in ["translated"]:
                     results["statistics"]["translated"] += 1
@@ -82,6 +100,16 @@ class ChangeApplicator:
                     "result": {"action": "copied"}
                 })
                 results["statistics"]["copied"] += 1
+                
+                # Update manifest for copied files
+                upstream_sha = file_info.get("current_upstream_sha")
+                if upstream_sha:
+                    self.manifest_manager.update_file_entry(
+                        file_path, 
+                        upstream_sha, 
+                        "copy_only",
+                        {"action": "copied"}
+                    )
                 
             except Exception as e:
                 results["errors"].append({

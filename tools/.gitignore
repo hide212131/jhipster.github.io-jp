@@ -57,3 +57,5 @@ Thumbs.db
 # Project specific
 tools/.out/
 tools/__pycache__/.cache/
+tools/docs/test*.md
+tools/docs/getting-started.md

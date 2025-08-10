@@ -32,6 +32,11 @@ class MockGitUtils(GitUtils):
         }
     
     def get_file_content(self, file_path: str, ref: str = "HEAD") -> str:
+        # Map refs to actual content keys
+        if ref == "HEAD":
+            ref = "main"
+        elif ref == "upstream/main":
+            ref = "upstream456"
         key = f"{ref}:{file_path}"
         return self.files.get(key)
     
@@ -48,6 +53,8 @@ class MockGitUtils(GitUtils):
         return True
     
     def get_current_sha(self, ref: str = "HEAD") -> str:
+        if ref == "upstream/main":
+            return "upstream456"
         return self.shas.get(ref, "default123")
     
     def get_current_branch(self) -> str:
@@ -208,7 +215,17 @@ def test_apply_changes_updates_manifest():
         # Setup applicator with mock
         applicator = ChangeApplicator()
         applicator.git_utils = mock_git
-        applicator.manifest_manager = ManifestManager(mock_git)
+        
+        # Use a shared manifest manager that has some initial data
+        shared_manifest_manager = ManifestManager(mock_git)
+        applicator.manifest_manager = shared_manifest_manager
+        
+        # Pre-populate manifest with initial data for testing
+        shared_manifest_manager.update_file_entry(
+            "docs/test.md", 
+            "old123", 
+            "translated"
+        )
         
         # Mock the translation to avoid actual LLM calls
         def mock_translate_file_content(content, context=None):
@@ -222,9 +239,11 @@ def test_apply_changes_updates_manifest():
         
         # Verify manifest was updated
         manifest = applicator.manifest_manager.read_manifest()
+        print(f"DEBUG: manifest files: {list(manifest['files'].keys())}")
         assert "docs/test.md" in manifest["files"]
         
         file_entry = manifest["files"]["docs/test.md"]
+        print(f"DEBUG: file_entry upstream_sha: {file_entry['upstream_sha']}")
         assert file_entry["upstream_sha"] == "upstream456"
         
         print("✓ Manifest updated after applying changes")
