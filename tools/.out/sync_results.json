@@ -1,0 +1,88 @@
+{
+  "mode": "dev",
+  "before_sha": null,
+  "limit": 1,
+  "paths": null,
+  "steps": [
+    {
+      "name": "setup",
+      "message": "Setting up upstream (dev mode)",
+      "timestamp": "2025-08-11T02:23:58.617172"
+    },
+    {
+      "name": "discover",
+      "message": "Discovering changes (limit: 1, before: None)",
+      "timestamp": "2025-08-11T02:23:58.617207"
+    },
+    {
+      "name": "apply",
+      "message": "Applying changes (dev mode)",
+      "timestamp": "2025-08-11T02:23:58.617589"
+    },
+    {
+      "name": "metrics",
+      "message": "Generating metrics report (dev mode)",
+      "timestamp": "2025-08-11T02:23:58.618110"
+    },
+    {
+      "name": "metrics",
+      "message": "Metrics report saved to .out/dev_report.json",
+      "timestamp": "2025-08-11T02:23:58.618445"
+    },
+    {
+      "name": "complete",
+      "message": "Development sync completed",
+      "timestamp": "2025-08-11T02:23:58.618469"
+    }
+  ],
+  "metrics_summary": {
+    "summary": {
+      "files": {
+        "inserted": 0,
+        "replaced": 0,
+        "kept": 0,
+        "deleted": 0,
+        "nondoc_copied": 0
+      },
+      "operations": {
+        "llm_calls": 0,
+        "retries": 0,
+        "cache_hits": 0,
+        "total_processing_time": 0.000948,
+        "error_count": 0
+      },
+      "lines": {
+        "added": 0,
+        "removed": 0
+      }
+    },
+    "pipeline": {
+      "start_time": "2025-08-11T02:23:58.617171",
+      "end_time": "2025-08-11T02:23:58.618119",
+      "total_processing_time": 0.000948
+    }
+  },
+  "apply_results": {
+    "processed_files": [
+      {
+        "file": "docs/example.md",
+        "result": {
+          "action": "kept_existing",
+          "details": "Preserved existing translation for 1 operations",
+          "operations_count": 1,
+          "strategies": [
+            "keep_existing"
+          ]
+        }
+      }
+    ],
+    "skipped_files": [],
+    "errors": [],
+    "statistics": {
+      "translated": 0,
+      "copied": 0,
+      "kept_existing": 1,
+      "deleted": 0
+    }
+  }
+}
