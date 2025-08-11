@@ -35,7 +35,7 @@ class Config:
         self.retry_delay = 1.0
         
         # Output settings
-        self.output_dir = Path("tools/.out")
+        self.output_dir = Path(".out")
         self.output_dir.mkdir(parents=True, exist_ok=True)
     
     def validate(self) -> bool:

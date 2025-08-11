@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "generated_at": "2025-08-11T02:04:05.750887",
+    "pipeline_version": "1.0",
+    "total_files": 0
+  },
+  "summary": {
+    "files": {
+      "inserted": 0,
+      "replaced": 0,
+      "kept": 0,
+      "deleted": 0,
+      "nondoc_copied": 0
+    },
+    "operations": {
+      "llm_calls": 0,
+      "retries": 0,
+      "cache_hits": 0,
+      "total_processing_time": 0.000949,
+      "error_count": 0
+    },
+    "lines": {
+      "added": 0,
+      "removed": 0
+    }
+  },
+  "pipeline": {
+    "start_time": "2025-08-11T02:04:05.749909",
+    "end_time": "2025-08-11T02:04:05.750858",
+    "total_processing_time": 0.000949
+  },
+  "files": []
+}
