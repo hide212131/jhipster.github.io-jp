@@ -23,7 +23,8 @@ on:
 jobs:
   sync:
     # Only run on the main repository, not on forks
-    if: github.repository == 'hide212131/jhipster.github.io-jp'
+    # Security: Never run on PR events to prevent secrets exposure
+    if: github.repository == 'hide212131/jhipster.github.io-jp' && github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
     permissions:
       contents: write
       pull-requests: write
@@ -67,7 +68,7 @@ jobs:
       run: |
         cd tools
         
-        # Validate that we have the required API key in CI mode
+        # Security: Validate that we have the required API key in CI mode without exposing it
         if [ -z "$GEMINI_API_KEY" ]; then
           echo "Error: GEMINI_API_KEY secret is not configured"
           echo "Please add GEMINI_API_KEY to repository secrets"
@@ -75,8 +76,9 @@ jobs:
         fi
         
         # Run the sync with proper error handling
-        if ! python run_sync.py --mode ci --output .out/sync_results.json; then
-          echo "Sync failed, check logs above"
+        # Security: Redirect detailed output to avoid logging sensitive data
+        if ! python run_sync.py --mode ci --output .out/sync_results.json 2>&1 | tee .out/sync.log | grep -E "^(Error|Warning|INFO|Sync|PR|✅|ℹ️)"; then
+          echo "Sync failed, check logs in artifacts"
           exit 1
         fi
 
@@ -107,8 +109,6 @@ jobs:
 
     - name: Create Pull Request
       if: steps.check_pr.outputs.pr_needed == 'true'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         BRANCH_NAME="${{ steps.check_pr.outputs.branch_name }}"
         
@@ -143,6 +143,9 @@ jobs:
         
         # Execute PR creation
         eval $PR_CMD
+      env:
+        # Security: Scope GITHUB_TOKEN only to this step
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload artifacts
       if: always()
@@ -167,6 +170,16 @@ jobs:
         echo ""
         echo "=== Output files ==="
         ls -la tools/.out/ || echo "No output directory"
+        
+        # Security: Only show summary information in logs
+        if [ -f "tools/.out/sync.log" ]; then
+          echo ""
+          echo "=== Sync Log Summary ==="
+          echo "Total lines in log: $(wc -l < tools/.out/sync.log)"
+          echo "Error count: $(grep -c "Error" tools/.out/sync.log || echo "0")"
+          echo "Warning count: $(grep -c "Warning" tools/.out/sync.log || echo "0")"
+          echo "Full log available in artifacts"
+        fi
         
         if [ "${{ steps.check_pr.outputs.pr_needed }}" = "true" ]; then
           echo ""
