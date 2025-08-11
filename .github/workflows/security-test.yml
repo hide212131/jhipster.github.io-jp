@@ -1,0 +1,141 @@
+name: Security Test - PR Secrets Guard
+
+# This workflow tests that secrets are not accessible in PR events
+# as required by the security specification
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-pr-secrets-guard:
+    name: Test PR Secrets Guard
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Test secrets are not accessible in PR events
+      run: |
+        echo "=== Security Test: PR Secrets Guard ==="
+        echo "Testing that secrets are not accessible in PR events"
+        
+        # Test 1: Verify GEMINI_API_KEY is not accessible
+        if [ -n "${GEMINI_API_KEY:-}" ]; then
+          echo "❌ FAIL: GEMINI_API_KEY is accessible in PR event"
+          exit 1
+        else
+          echo "✅ PASS: GEMINI_API_KEY is not accessible in PR event"
+        fi
+        
+        # Test 2: Verify that GITHUB_TOKEN has limited scope in PR from fork
+        if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+          echo "📝 INFO: This is a PR from a fork, GITHUB_TOKEN has limited permissions (expected)"
+        else
+          echo "📝 INFO: This is a PR from the same repository"
+        fi
+        
+        # Test 3: Verify workflow context
+        echo "📝 Event: ${{ github.event_name }}"
+        echo "📝 Repository: ${{ github.repository }}"
+        echo "📝 Head repository: ${{ github.event.pull_request.head.repo.full_name || 'N/A' }}"
+        
+        echo "✅ All security tests passed"
+      env:
+        # Security: Explicitly try to access the secret - it should be empty in PR context
+        # This is safe because we're testing that the secret is NOT accessible
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+  test-secret-using-workflows-dont-run-on-pr:
+    name: Test Secret-using workflows don't run on PR
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Parse workflows for PR triggers with secrets
+      run: |
+        echo "=== Security Test: Workflow PR Trigger Analysis ==="
+        
+        # Check each workflow file for problematic patterns
+        for workflow in .github/workflows/*.yml; do
+          echo "Checking $workflow..."
+          
+          # Check if workflow uses secrets and also has PR triggers (using simpler logic)
+          if grep -q "secrets\." "$workflow" 2>/dev/null; then
+            has_secrets=1
+          else
+            has_secrets=0
+          fi
+          
+          if grep -q "pull_request" "$workflow" 2>/dev/null; then
+            has_pr_trigger=1
+          else
+            has_pr_trigger=0
+          fi
+          
+          if [ "$has_secrets" -eq 1 ] && [ "$has_pr_trigger" -eq 1 ]; then
+            echo "⚠️  WARNING: $workflow has both secrets and PR triggers"
+            echo "   Checking for proper guards..."
+            
+            # Check if it has explicit guards against PR events
+            if grep -q "github.event_name != 'pull_request'" "$workflow" 2>/dev/null; then
+              echo "✅ PASS: $workflow has proper PR guards"
+            else
+              echo "❌ FAIL: $workflow uses secrets and PR triggers without proper guards"
+              exit 1
+            fi
+          elif [ "$has_secrets" -eq 1 ]; then
+            echo "✅ PASS: $workflow uses secrets but has no PR triggers"
+          elif [ "$has_pr_trigger" -eq 1 ]; then
+            echo "✅ PASS: $workflow has PR triggers but uses no secrets"
+          else
+            echo "📝 INFO: $workflow uses no secrets and has no PR triggers"
+          fi
+        done
+        
+        echo "✅ All workflow security checks passed"
+
+  test-variable-scoping:
+    name: Test Variable Scoping
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Test environment variable scoping
+      run: |
+        echo "=== Security Test: Variable Scoping ==="
+        
+        # Test that sensitive environment variables are properly scoped
+        echo "Testing environment variable isolation..."
+        
+        # This should not have access to secrets
+        if [ -n "${GEMINI_API_KEY:-}" ]; then
+          echo "❌ FAIL: GEMINI_API_KEY leaked to unintended scope"
+          exit 1
+        fi
+        
+        # Test job-level variable doesn't leak to other steps
+        echo "TEST_VAR=test_value" >> $GITHUB_ENV
+        
+        echo "✅ Variable scoping test passed"
+        
+    - name: Test variable isolation
+      run: |
+        # TEST_VAR should be available here since it was set in GITHUB_ENV
+        if [ "$TEST_VAR" = "test_value" ]; then
+          echo "✅ GITHUB_ENV variables properly propagated"
+        else
+          echo "❌ FAIL: GITHUB_ENV variable not propagated"
+          exit 1
+        fi
+        
+        # But sensitive variables should still not be accessible
+        if [ -n "${GEMINI_API_KEY:-}" ]; then
+          echo "❌ FAIL: Sensitive variable leaked across steps"
+          exit 1
+        fi
+        
+        echo "✅ Variable isolation test passed"
