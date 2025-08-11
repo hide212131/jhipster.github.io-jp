@@ -8,6 +8,7 @@ from datetime import datetime
 from git_utils import GitUtils
 from file_filters import FileFilter
 from line_diff import LineDiff
+from manifest_manager import ManifestManager
 from config import config
 
 
@@ -19,6 +20,7 @@ class ChangeDiscoverer:
         self.git_utils = GitUtils()
         self.file_filter = FileFilter()
         self.line_diff = LineDiff()
+        self.manifest_manager = ManifestManager(self.git_utils)
     
     def discover_changes(self, upstream_ref: str = "upstream/main", meta_branch: str = "translation-meta", before_sha: str = None) -> Dict[str, Any]:
         """Discover changes between upstream and current state."""
@@ -50,32 +52,52 @@ class ChangeDiscoverer:
     def _analyze_file_change(self, file_path: str, upstream_ref: str) -> Dict[str, Any]:
         """Analyze change for a specific file."""
         try:
+            # Get current upstream SHA for comparison
+            current_upstream_sha = self.git_utils.get_current_sha(upstream_ref)
+            
+            # Get manifest info for this file
+            manifest_upstream_sha = self.manifest_manager.get_file_upstream_sha(file_path)
+            previous_strategy = self.manifest_manager.get_file_strategy(file_path)
+            
             # Get upstream content
             upstream_content = self.git_utils.get_file_content(file_path, upstream_ref)
-            # Get current content
-            current_content = self.git_utils.get_file_content(file_path, "HEAD")
             
-            if upstream_content is None and current_content is not None:
+            # Get content from manifest SHA if it exists, otherwise compare against current local
+            if manifest_upstream_sha:
+                baseline_content = self.git_utils.get_file_content(file_path, manifest_upstream_sha)
+            else:
+                # No manifest entry, compare against current local content
+                baseline_content = self.git_utils.get_file_content(file_path, "HEAD")
+            
+            if upstream_content is None and baseline_content is not None:
                 return {
                     "path": file_path,
-                    "status": "deleted",  # File exists locally but not in upstream (was deleted upstream)
+                    "status": "deleted",
                     "operations": [],
-                    "summary": {"total_operations": 0}
+                    "summary": {"total_operations": 0},
+                    "manifest_sha": manifest_upstream_sha,
+                    "current_upstream_sha": current_upstream_sha,
+                    "previous_strategy": previous_strategy,
+                    "needs_update": manifest_upstream_sha != current_upstream_sha
                 }
             
-            if upstream_content is not None and current_content is None:
+            if upstream_content is not None and baseline_content is None:
                 return {
                     "path": file_path,
-                    "status": "added",  # File exists in upstream but not locally (was added upstream)
+                    "status": "added",
                     "operations": [],
-                    "summary": {"total_operations": 0}
+                    "summary": {"total_operations": 0},
+                    "manifest_sha": manifest_upstream_sha,
+                    "current_upstream_sha": current_upstream_sha,
+                    "previous_strategy": previous_strategy,
+                    "needs_update": manifest_upstream_sha != current_upstream_sha
                 }
             
-            # Compare content
-            upstream_lines = upstream_content.split('\n')
-            current_lines = current_content.split('\n')
+            # Compare baseline with current upstream
+            baseline_lines = baseline_content.split('\n') if baseline_content else []
+            upstream_lines = upstream_content.split('\n') if upstream_content else []
             
-            operations = self.line_diff.get_diff_operations(current_lines, upstream_lines)
+            operations = self.line_diff.get_diff_operations(baseline_lines, upstream_lines)
             summary = self.line_diff.get_diff_summary(operations)
             
             # Convert operations to serializable format
@@ -98,7 +120,11 @@ class ChangeDiscoverer:
                 "path": file_path,
                 "status": "modified" if operations else "unchanged",
                 "operations": serializable_ops,
-                "summary": summary
+                "summary": summary,
+                "manifest_sha": manifest_upstream_sha,
+                "current_upstream_sha": current_upstream_sha,
+                "previous_strategy": previous_strategy,
+                "needs_update": manifest_upstream_sha != current_upstream_sha
             }
             
         except Exception as e:
@@ -107,7 +133,11 @@ class ChangeDiscoverer:
                 "status": "error",
                 "error": str(e),
                 "operations": [],
-                "summary": {"total_operations": 0}
+                "summary": {"total_operations": 0},
+                "manifest_sha": None,
+                "current_upstream_sha": None,
+                "previous_strategy": None,
+                "needs_update": False
             }
 
 
