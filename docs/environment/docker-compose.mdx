@@ -7,6 +7,7 @@ last_update:
 
 # <i class="fa fa-music"></i> DockerとDocker Compose
 
+<<<<<<< HEAD
 ## 要旨
 
 DockerとDocker Composeの使用は、開発では非常に推奨されており、プロダクション環境でも良い解決策となります。
@@ -21,6 +22,9 @@ DockerとDocker Composeの使用は、開発では非常に推奨されており
 7. [Keycloak](#7)
 8. [共通コマンド](#8)
 9. [メモリの調整](#9)
+=======
+Docker Compose is used by default in development, tests and CI scripts, which can be [disabled](#disabling).
+>>>>>>> upstream/main
 
 ## Description
 
@@ -327,3 +331,18 @@ environment:
   - (...)
   - _JAVA_OPTIONS=-Xmx512m -Xms256m
 ```
+
+## Disabling
+
+Add to src/main/resources/application.yml or application-dev.yml depending on your application configuration.
+
+```yaml
+spring:
+  docker:
+    compose:
+      enabled: false
+```
+
+## Alternatives
+
+- [Colima](https://github.com/abiosoft/colima#getting-started)

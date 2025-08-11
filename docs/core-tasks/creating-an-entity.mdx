@@ -95,6 +95,7 @@ JDL Studioを使用した場合は以下の通りです。
 
 JHipsterは多くのフィールドタイプをサポートしています。このサポートはデータベースバックエンドに依存するため、Javaの型を使用してそれらを記述します。Javaの`String`はOracleとCassandraでは格納方法が異なります。正しいデータベースアクセスコードを生成することは、JHipsterの強みの1つです。
 
+<<<<<<< HEAD
 *   `String`：JavaのString型です。デフォルトのサイズは基盤となるバックエンドに依存します（JPAを使用している場合、デフォルトでは255です）が、検証ルールを使用して変更できます（たとえば、`max`サイズを1024に設定します）。
 *   `Integer`：JavaのInteger型です。
 *   `Long`：JavaのLong型です。
@@ -109,6 +110,23 @@ JHipsterは多くのフィールドタイプをサポートしています。こ
 *   `Boolean`：JavaのBoolean型です。
 *   `Enumeration`：JavaのEnumeration型です。オブジェクトこのタイプを選択すると、サブジェネレータは列挙に必要な値を尋ね、それらを格納するための特定の`enum`クラスを作成します。
 *   `Blob`：バイナリデータを格納するために使用されるBlobオブジェクトです。このタイプを選択すると、サブジェネレータは汎用バイナリデータ、イメージオブジェクト、またはCLOB（ロングテキスト）を格納するかどうかを確認します。イメージは特にAngular側で処理されるため、エンドユーザに表示できます。
+=======
+* `String`: A Java String. Its default size depends on the underlying backend (if you use JPA, it's 255 by default), but you can change it using the validation rules (putting a `max` size of 1024, for example).
+* `Integer`: A Java Integer.
+* `Long`: A Java Long.
+* `Float`: A Java Float.
+* `Double`: A Java Double.
+* `BigDecimal`: A [java.math.BigDecimal](https://docs.oracle.com/javase/8/docs/api/java/math/BigDecimal.html) object, used when you want exact mathematic calculations (often used for financial operations).
+* `LocalDate`: A [java.time.LocalDate](https://docs.oracle.com/javase/8/docs/api/java/time/LocalDate.html) object, used to correctly manage dates in Java.
+* `Instant`: A [java.time.Instant](https://docs.oracle.com/javase/8/docs/api/java/time/Instant.html) object, used to represent a timestamp, an instantaneous point on the time-line.
+* `ZonedDateTime`: A [java.time.ZonedDateTime](https://docs.oracle.com/javase/8/docs/api/java/time/ZonedDateTime.html) object, used to represent a local date-time in a given timezone (typically a calendar appointment). Note that time zones are neither supported by the REST nor by the persistence layers so you should most probably use `Instant` instead.
+* `Duration`: A [java.time.Duration](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) object, used to represent an amount of time.
+* `LocalTime`: A [java.time.LocalTime](https://docs.oracle.com/javase/8/docs/api/java/time/LocalTime.html) object, used to represent a local time without timezone. Can be used to define business hours for example.
+* `UUID`: A [java.util.UUID](https://docs.oracle.com/javase/8/docs/api/java/util/UUID.html).
+* `Boolean`: A Java Boolean.
+* `Enumeration`: A Java Enumeration object. When this type is selected, the sub-generator will ask you what values you want in your enumeration, and it will create a specific `enum` class to store them.
+* `Blob`: A Blob object, used to store some binary data. When this type is selected, the sub-generator will ask you if you want to store generic binary data, an image object, or a CLOB (long text). Images will be handled specifically on the Angular side, so they can be displayed to the end-user.
+>>>>>>> upstream/main
 
 
 ## 検証
@@ -179,10 +197,17 @@ Bean検証は、ドメインオブジェクトが以下の場所で使用され�
 
 既存のエンティティに対してエンティティサブジェネレータを実行すると、「エンティティを更新しますか？　これにより、このエンティティの既存のファイルが置き換えられ、すべてのカスタムコードが上書きされます（Do you want to update the entity? This will replace the existing files for this entity, all your custom code will be overwritten）」というメッセージが表示され、次のオプションが表示されます。
 
+<<<<<<< HEAD
 *   `はい、エンティティを再生成します（Yes, re generate the entity）` - これにより、エンティティが再生成されます。ヒント：これは、サブジェネレータの実行時に`--regenerate`フラグを渡すことによって強制できます。
 *   `はい、フィールドとリレーションシップをさらに追加します（Yes, add more fields and relationships）` - これにより、フィールドとリレーションシップをさらに追加するための質問が表示されます。
 *   `はい、フィールドとリレーションシップを削除します（Yes, remove fields and relationships）` - 既存のフィールドとリレーションシップをエンティティから削除するかどうかを確認するメッセージが表示されます。
 *   `いいえ、終了します（No, exit）` - 何も変更せずにサブジェネレータを終了します。
+=======
+* `Yes, re generate the entity` - This will regenerate your entity. Tip: This can be forced by passing a `--regenerate` flag when running the sub-generator
+* `Yes, add more fields and relationships` - This will give you questions to add more fields and relationships
+* `Yes, remove fields and relationships` - This will give you questions to remove existing fields and relationships from the entity
+* `No, exit` - This will exit the sub-generator without changing anything
+>>>>>>> upstream/main
 
 以下のような理由がある場合に、エンティティを更新することになるでしょう。
 
