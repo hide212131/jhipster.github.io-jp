@@ -13,6 +13,7 @@ from discover_changes import ChangeDiscoverer
 from apply_changes import ChangeApplicator
 from pr_body import PRBodyGenerator
 from verify_alignment import AlignmentVerifier
+from metrics_collector import get_metrics_collector, reset_metrics_collector
 
 
 class SyncRunner:
@@ -25,6 +26,10 @@ class SyncRunner:
         self.applicator = ChangeApplicator()
         self.pr_generator = PRBodyGenerator()
         self.verifier = AlignmentVerifier()
+        
+        # Reset metrics collector for clean run
+        reset_metrics_collector()
+        self.metrics_collector = get_metrics_collector()
     
     def run_ci_mode(self, branch_prefix: str = "translate/sync", **kwargs) -> Dict[str, Any]:
         """Run in CI mode - full sync with PR creation."""
@@ -40,6 +45,9 @@ class SyncRunner:
         }
         
         try:
+            # Start metrics collection
+            self.metrics_collector.start_pipeline()
+            
             # Step 1: Setup upstream and fetch
             self._log_step(results, "setup", "Setting up upstream and fetching changes")
             if not self.git_utils.add_upstream_remote():
@@ -91,7 +99,16 @@ class SyncRunner:
                 with open(apply_results_file, 'w', encoding='utf-8') as f:
                     json.dump(apply_results, f, indent=2, ensure_ascii=False)
                 
-                pr_body = self.pr_generator.generate_pr_body(changes_file, apply_results_file)
+                # Generate and save metrics report
+                self._log_step(results, "metrics", "Generating metrics report")
+                self.metrics_collector.end_pipeline()
+                report_file = str(config.output_dir / "report.json")
+                if self.metrics_collector.save_report(report_file):
+                    self._log_step(results, "metrics", f"Metrics report saved to {report_file}")
+                else:
+                    self._log_step(results, "metrics", "Failed to save metrics report")
+                
+                pr_body = self.pr_generator.generate_pr_body(changes_file, apply_results_file, report_file)
                 pr_body_file = str(config.output_dir / "pr_body.md")
                 with open(pr_body_file, 'w', encoding='utf-8') as f:
                     f.write(pr_body)
@@ -100,6 +117,14 @@ class SyncRunner:
                 if os.getenv("GITHUB_ENV"):
                     with open(os.getenv("GITHUB_ENV"), "a") as f:
                         f.write("PR_NEEDED=1\n")
+            
+            # Generate metrics report even if no PR is needed (for diagnostics)
+            if not results["pr_needed"]:
+                self._log_step(results, "metrics", "Generating metrics report")
+                self.metrics_collector.end_pipeline()
+                report_file = str(config.output_dir / "report.json")
+                if self.metrics_collector.save_report(report_file):
+                    self._log_step(results, "metrics", f"Metrics report saved to {report_file}")
             
             self._log_step(results, "complete", "Synchronization completed successfully")
             
@@ -121,6 +146,9 @@ class SyncRunner:
         }
         
         try:
+            # Start metrics collection
+            self.metrics_collector.start_pipeline()
+            
             # Step 1: Setup upstream
             self._log_step(results, "setup", "Setting up upstream (dev mode)")
             if not self.git_utils.add_upstream_remote():
@@ -158,7 +186,16 @@ class SyncRunner:
             
             apply_results = self.applicator.apply_changes(changes_file)
             
-            # Step 4: Show results
+            # Step 4: Generate metrics and show results
+            self._log_step(results, "metrics", "Generating metrics report (dev mode)")
+            self.metrics_collector.end_pipeline()
+            report_file = str(config.output_dir / "dev_report.json")
+            if self.metrics_collector.save_report(report_file):
+                self._log_step(results, "metrics", f"Metrics report saved to {report_file}")
+                
+                # Add metrics summary to dev results
+                results["metrics_summary"] = self.metrics_collector.get_aggregated_statistics()
+            
             self._log_step(results, "complete", "Development sync completed")
             results["apply_results"] = apply_results
             

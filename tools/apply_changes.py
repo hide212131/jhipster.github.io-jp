@@ -8,6 +8,7 @@ from git_utils import GitUtils
 from translate_blockwise import BlockwiseTranslator
 from manifest_manager import ManifestManager
 from config import config
+from metrics_collector import get_metrics_collector
 
 
 class ChangeApplicator:
@@ -19,6 +20,7 @@ class ChangeApplicator:
         self.translator = BlockwiseTranslator()
         self.manifest_manager = ManifestManager(self.git_utils)
         self.similarity_threshold = 0.98  # Threshold for minor changes (軽微変更)
+        self.metrics_collector = get_metrics_collector()
     
     def apply_changes(self, changes_file: str, target_files: List[str] = None) -> Dict[str, Any]:
         """Apply changes from discovery results."""
@@ -49,11 +51,34 @@ class ChangeApplicator:
                 continue
             
             try:
+                # Get existing file info for metrics
+                existing_content = self._get_existing_translation(file_path)
+                existing_lines = len(existing_content.split('\n')) if existing_content else 0
+                upstream_sha = file_info.get("current_upstream_sha", "")
+                
                 result = self._apply_file_changes(file_info)
                 results["processed_files"].append({
                     "file": file_path,
                     "result": result
                 })
+                
+                # Record metrics based on the action taken
+                operation = self._map_action_to_operation(result["action"])
+                strategy = result.get("final_strategy", result["action"])
+                
+                # Get final file content for line counting
+                final_content = self._get_existing_translation(file_path)
+                final_lines = len(final_content.split('\n')) if final_content else 0
+                
+                # Record file operation metrics
+                file_metrics = self.metrics_collector.record_file_operation(
+                    file_path=file_path,
+                    operation=operation,
+                    lines_before=existing_lines,
+                    lines_after=final_lines,
+                    upstream_sha=upstream_sha,
+                    strategy=strategy
+                )
                 
                 # Update manifest after successful processing
                 if result["action"] in ["translated", "kept_existing", "kept_existing_llm"]:
@@ -83,6 +108,17 @@ class ChangeApplicator:
                     "error": str(e)
                 }
                 results["errors"].append(error_info)
+                
+                # Record error in metrics
+                self.metrics_collector.record_file_operation(
+                    file_path=file_path,
+                    operation="error",
+                    lines_before=0,
+                    lines_after=0,
+                    upstream_sha=file_info.get("current_upstream_sha", ""),
+                    strategy="error",
+                    error=str(e)
+                )
         
         # Process copy-only files
         copy_files = changes["files"].get("copy_only", [])
@@ -101,6 +137,17 @@ class ChangeApplicator:
                 })
                 results["statistics"]["copied"] += 1
                 
+                # Record metrics for copied files
+                upstream_sha = file_info.get("current_upstream_sha", "")
+                self.metrics_collector.record_file_operation(
+                    file_path=file_path,
+                    operation="nondoc_copied",
+                    lines_before=0,
+                    lines_after=0,
+                    upstream_sha=upstream_sha,
+                    strategy="copy_only"
+                )
+                
                 # Update manifest for copied files
                 upstream_sha = file_info.get("current_upstream_sha")
                 if upstream_sha:
@@ -112,10 +159,22 @@ class ChangeApplicator:
                     )
                 
             except Exception as e:
+                error_msg = str(e)
                 results["errors"].append({
                     "file": file_path,
-                    "error": str(e)
+                    "error": error_msg
                 })
+                
+                # Record error in metrics
+                self.metrics_collector.record_file_operation(
+                    file_path=file_path,
+                    operation="error",
+                    lines_before=0,
+                    lines_after=0,
+                    upstream_sha=file_info.get("current_upstream_sha", ""),
+                    strategy="copy_error",
+                    error=error_msg
+                )
         
         return results
     
@@ -193,7 +252,8 @@ class ChangeApplicator:
         # Translate content
         translated_content = self.translator.translate_file_content(
             upstream_content, 
-            context=f"File: {file_path}"
+            context=f"File: {file_path}",
+            file_path=file_path
         )
         
         # Write translated content
@@ -289,6 +349,17 @@ class ChangeApplicator:
             # Handle as binary
             with open(output_path, 'wb') as f:
                 f.write(upstream_content.encode('utf-8'))
+    
+    def _map_action_to_operation(self, action: str) -> str:
+        """Map action result to operation type for metrics."""
+        action_map = {
+            "translated": "replaced",
+            "kept_existing": "kept", 
+            "kept_existing_llm": "kept",
+            "copied": "nondoc_copied",
+            "no_changes": "kept"
+        }
+        return action_map.get(action, "replaced")
 
 
 @click.command()

@@ -8,6 +8,7 @@ from placeholder import PlaceholderProtector
 from segmenter import TextSegmenter
 from reflow import LineReflow
 from llm import LLMTranslator
+from metrics_collector import get_metrics_collector
 
 
 class BlockwiseTranslator:
@@ -19,10 +20,13 @@ class BlockwiseTranslator:
         self.segmenter = TextSegmenter()
         self.reflow = LineReflow()
         self.llm = LLMTranslator()
+        self.metrics_collector = get_metrics_collector()
     
-    def translate_file_content(self, content: str, context: str = "") -> str:
+    def translate_file_content(self, content: str, context: str = "", file_path: str = "") -> str:
         """Translate file content while preserving line structure."""
+        start_time = time.time()
         original_lines = content.split('\n')
+        initial_llm_calls = self.llm.llm_calls_count
         
         # Protect placeholders
         protected_content = self.protector.protect(content)
@@ -69,6 +73,23 @@ class BlockwiseTranslator:
                 translated_texts = [translated_text]
         else:
             translated_texts = []
+        
+        # Calculate metrics after translation
+        end_time = time.time()
+        processing_time = end_time - start_time
+        llm_calls_made = self.llm.llm_calls_count - initial_llm_calls
+        
+        # Record LLM call metrics if file_path is provided
+        if file_path:
+            # TODO: In a more sophisticated implementation, we'd track retries from the LLM module
+            # For now, we estimate retries as 0 and cache hits from the cache module
+            cache_hits = getattr(self.llm.cache, 'cache_hits_count', 0) if hasattr(self.llm, 'cache') else 0
+            self.metrics_collector.record_llm_call(
+                file_path=file_path,
+                retry_count=0,  # Would need to be tracked in LLM module
+                processing_time=processing_time,
+                cache_hit=(cache_hits > 0)
+            )
         
         # Apply translations to blocks
         translated_blocks = []

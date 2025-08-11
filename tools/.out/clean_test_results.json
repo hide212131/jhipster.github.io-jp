@@ -7,32 +7,32 @@
     {
       "name": "setup",
       "message": "Setting up upstream (dev mode)",
-      "timestamp": "2025-08-11T02:00:14.550509"
+      "timestamp": "2025-08-11T02:01:10.022575"
     },
     {
       "name": "discover",
       "message": "Discovering changes (limit: 0, before: None)",
-      "timestamp": "2025-08-11T02:00:14.550541"
+      "timestamp": "2025-08-11T02:01:10.022614"
     },
     {
       "name": "apply",
       "message": "Applying changes (dev mode)",
-      "timestamp": "2025-08-11T02:00:14.550895"
+      "timestamp": "2025-08-11T02:01:10.023031"
     },
     {
       "name": "metrics",
       "message": "Generating metrics report (dev mode)",
-      "timestamp": "2025-08-11T02:00:14.551719"
+      "timestamp": "2025-08-11T02:01:10.023885"
     },
     {
       "name": "metrics",
-      "message": "Metrics report saved to tools/.out/dev_report.json",
-      "timestamp": "2025-08-11T02:00:14.552105"
+      "message": "Metrics report saved to .out/dev_report.json",
+      "timestamp": "2025-08-11T02:01:10.024207"
     },
     {
       "name": "complete",
       "message": "Development sync completed",
-      "timestamp": "2025-08-11T02:00:14.552130"
+      "timestamp": "2025-08-11T02:01:10.024236"
     }
   ],
   "metrics_summary": {
@@ -48,7 +48,7 @@
         "llm_calls": 0,
         "retries": 0,
         "cache_hits": 0,
-        "total_processing_time": 0.001248,
+        "total_processing_time": 0.001322,
         "error_count": 0
       },
       "lines": {
@@ -57,9 +57,9 @@
       }
     },
     "pipeline": {
-      "start_time": "2025-08-11T02:00:14.550507",
-      "end_time": "2025-08-11T02:00:14.551755",
-      "total_processing_time": 0.001248
+      "start_time": "2025-08-11T02:01:10.022572",
+      "end_time": "2025-08-11T02:01:10.023894",
+      "total_processing_time": 0.001322
     }
   },
   "apply_results": {
