@@ -105,6 +105,7 @@ JHipsterは多くのフィールドタイプをサポートしています。こ
 *   `Instant`：[java.time.Instant](https://docs.oracle.com/javase/8/docs/api/java/time/Instant.html)です。タイムライン上の瞬間的なポイントであるタイムスタンプを表すために使用されます。
 *   `ZonedDateTime`：[java.time.ZonedDateTime](https://docs.oracle.com/javase/8/docs/api/java/time/ZonedDateTime.html)です。特定のタイムゾーン（通常はカレンダーの予定）のローカル日時を表すために使用されます。タイムゾーンはRESTと永続化層のいずれもサポートされていないので、代わりに`Instant`を使用するべきであることに注意してください。
 *   `Duration`：[java.time.Duration](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html)です。時間の量を表すために使用されます。
+* `LocalTime`: タイムゾーン情報を含まないローカル時刻を表すために使用される[java.time.LocalTime](https://docs.oracle.com/javase/8/docs/api/java/time/LocalTime.html) オブジェクトです。例えば、営業時間などを定義するのに利用できます。
 *   `UUID`：[java.util.UUID](https://docs.oracle.com/javase/8/docs/api/java/util/UUID.html)です。
 *   `Boolean`：JavaのBoolean型です。
 *   `Enumeration`：JavaのEnumeration型です。オブジェクトこのタイプを選択すると、サブジェネレータは列挙に必要な値を尋ね、それらを格納するための特定の`enum`クラスを作成します。
@@ -182,7 +183,7 @@ Bean検証は、ドメインオブジェクトが以下の場所で使用され�
 *   `はい、エンティティを再生成します（Yes, re generate the entity）` - これにより、エンティティが再生成されます。ヒント：これは、サブジェネレータの実行時に`--regenerate`フラグを渡すことによって強制できます。
 *   `はい、フィールドとリレーションシップをさらに追加します（Yes, add more fields and relationships）` - これにより、フィールドとリレーションシップをさらに追加するための質問が表示されます。
 *   `はい、フィールドとリレーションシップを削除します（Yes, remove fields and relationships）` - 既存のフィールドとリレーションシップをエンティティから削除するかどうかを確認するメッセージが表示されます。
-*   `いいえ、終了します（No, exit）` - 何も変更せずにサブジェネレータを終了します。
+* `No, exit` - これにより、何も変更せずにサブジェネレーターを終了します。
 
 以下のような理由がある場合に、エンティティを更新することになるでしょう。
 

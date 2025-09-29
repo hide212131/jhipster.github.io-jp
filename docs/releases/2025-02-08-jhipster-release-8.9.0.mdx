@@ -1,0 +1,105 @@
+---
+title: リリース 8.9.0
+slug: 2025年2月8日付JHipster 8.9.0リリースHTML
+displayed_sidebar: ドキュメントサイドバー
+sidebar_class_name: 隠れた
+---
+
+# JHipster リリース v8.9.0
+
+これはJHipster v8のマイナーリリースです。
+
+[8.8.0リリース](/2024/12/23/jhipster-release-8.8.0.html)以降、メインブランチで[361件のクローズされたイシューとプルリクエスト](https://github.com/jhipster/generator-jhipster/issues?q=is:closed+milestone:8.9.0)が含まれています。
+
+## 新機能
+
+* Spring Boot 3.4.2へのアップグレード ([#28539](https://github.com/jhipster/generator-jhipster/pull/28539))
+* Docker Composeの要件について詳細に説明 ([#28376](https://github.com/jhipster/generator-jhipster/pull/28376))
+* Node 22.13.1へのアップグレード ([#28527](https://github.com/jhipster/generator-jhipster/pull/28527))
+* Gradle 8.12.1へのアップグレード ([#28543](https://github.com/jhipster/generator-jhipster/pull/28543))
+* プレーンなTimeフィールドのサポートを追加 ([#28474](https://github.com/jhipster/generator-jhipster/pull/28474))
+* Angular 19.0.6へのアップグレード ([#28442](https://github.com/jhipster/generator-jhipster/pull/28442))
+* [Angular] 開発モードでのOAuth2/KeycloakによるHTTPSリダイレクト強制を修正 ([#28366](https://github.com/jhipster/generator-jhipster/pull/28366))
+* [Angular] Typescript 5.7.3へのアップグレード ([#28502](https://github.com/jhipster/generator-jhipster/pull/28502))
+* [Angular] angular-buildersのベータ版から安定版への移行 ([#28386](https://github.com/jhipster/generator-jhipster/pull/28386))
+* [Vue] Vite 6へのアップグレードを修正 ([#28304](https://github.com/jhipster/generator-jhipster/pull/28304))
+* 多くのクリーンコード改善
+
+## クローズされたチケットとマージされたプルリクエスト
+
+詳細については、[GitHubの8.9.0リリースノート](https://github.com/jhipster/generator-jhipster/releases/tag/v8.9.0)を参照してください。
+
+いつものように、**[すべてのクローズされたチケットとマージされたプルリクエスト](https://github.com/jhipster/generator-jhipster/issues?q=is:closed+milestone:8.9.0)を表示できます**。
+
+## インストール方法
+
+JHipster v8.9.0をインストールするには：
+
+```
+npm install -g generator-jhipster@8.9.0
+```
+
+JHipster Dockerイメージを使用しても利用可能です。これはソースコードから自動的にビルドされます。
+
+- [JHipster Online](https://start.jhipster.tech)
+- [JHipster Devbox](https://github.com/jhipster/jhipster-devbox)
+
+## アップグレード方法
+
+**自動アップグレード**
+
+自動アップグレードの場合、既存のアプリケーションで[JHipsterアップグレードサブジェネレーター](/upgrading-an-application/)を使用します：
+
+JHipsterのバージョンをアップグレードします：
+
+```
+npm update -g generator-jhipster
+```
+
+そして、アップグレードサブジェネレーターを実行します：
+
+```
+jhipster upgrade
+```
+
+より高度なアップグレード機能には、[migrateブループリント](https://github.com/jhipster/generator-jhipster-migrate)も使用できます。
+
+```
+npm i -g generator-jhipster-migrate
+jhipster-migrate
+```
+
+**手動アップグレード**
+
+手動アップグレードの場合、まずJHipsterのバージョンを以下でアップグレードします：
+
+```
+npm update -g generator-jhipster
+```
+
+既存のプロジェクトがある場合、それは生成されたJHipsterのバージョンを使い続けます。
+プロジェクトをアップグレードするには、まず`node_modules`フォルダを削除し、その後以下を実行する必要があります：
+
+```
+jhipster
+```
+
+JHipster 8.0以降、このコマンドはプロジェクトとそのすべてのエンティティを更新します。
+
+エンティティサブジェネレーターを再度実行することで、エンティティを1つずつ更新することもできます。例えば、エンティティ名が_Foo_の場合、以下を使用します：
+
+```
+jhipster entity Foo --single-entity
+```
+
+## ヘルプとバグ
+
+このリリースで何か問題を見つけた場合は、遠慮なく以下を行ってください：
+
+- [バグトラッカー](https://github.com/jhipster/generator-jhipster/issues?state=open)にバグを追加する
+- [Stack Overflow](http://stackoverflow.com/tags/jhipster/info)で質問を投稿する
+- [GitHub](https://github.com/jhipster/generator-jhipster/discussions)で新しいディスカッションを作成する
+
+もし抱えている問題が緊急のバグまたはセキュリティ問題である場合は、以下を行ってください：
+
+- Twitterで[@jhipster](https://twitter.com/jhipster)に連絡する

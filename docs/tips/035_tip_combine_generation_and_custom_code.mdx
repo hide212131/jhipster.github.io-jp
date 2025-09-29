@@ -96,3 +96,78 @@ providers: [
 ### 短所
 
 - ファイルの重複が発生します。
+
+- ファイルの重複
+
+## 代替のサイドバイサイド・アプローチ
+
+このアプローチは、既存のJHipsterアプリケーションに、生成されたコードへの変更を最小限に抑えながら機能を追加することを目的としています。
+
+### リポジトリ層
+
+すべてのカスタムメソッドを含むリポジトリインターフェースを、別のカスタムパッケージ内に作成します。このアプローチにより、生成されたリポジトリコードは変更されずに保たれ、カスタムロジックは整理され、保守しやすくなります。
+
+### サービス層
+
+この層にカスタムコードを追加するための主なアプローチは3つあります。
+
+アスペクト指向プログラミング (AOP):
+
+AOPを使用すると、コアビジネスロジックを変更することなく、ロギング、セキュリティ、トランザクション管理などの横断的関心事を導入できます。この関心事の分離は、よりクリーンでモジュール化されたコードの維持に役立ちます。
+
+イベントリスナー:
+
+新しい機能がアプリケーション内の特定のイベント（例：Fooエンティティの保存後）によってトリガーされる場合、Springのイベントリスナーメカニズムを使用できます。これにより、コアロジックはクリーンに保たれますが、実行フローの追跡が難しくなる可能性があります。
+
+デコレーターパターン:
+
+新しいメソッドを追加したり、既存の動作を制御された方法で変更したりするには、デコレーターパターンが強く推奨されます。このパターンは、元のクラスを、追加機能を提供するデコレーターでラップすることを含みます。これはクリーンでテスト可能であり、元のクライアントクラスへの変更を最小限に抑え、より良い保守性を確保します。
+
+ステップ1: サービス・クラスがどのように生成されるかに応じて、既存のインターフェースを作成または拡張します。
+```
+interface IFooService {
+    void newFeature();
+    //Existing method declarations
+   ...
+}
+```
+ステップ2: コンポジションによる拡張
+```
+@Service
+@Qualifier("entended")
+public class ExtendedFooService implements FooService{
+    private final FooService existingFooService;
+    private final ExtendedFooRepository extendedFooRepository; // For new repository functionality
+   ...
+}
+```
+ステップ3: 既存のサービス・クラスに@Primaryを追加し、ステップ1で既存のサービス・クラスをインターフェースの実装としてマークします。
+
+ステップ4: 元のサービス・クライアントの属性型を、ステップ1で作成したインターフェースに変更します。
+
+サービス・メソッドの複数の実装を持つ可能性が低い場合、またはサービス・メソッドの頻繁な変更を予想しない場合は、ステップ1を省略し、このアプローチの簡略化された実装のために、以下のステップで関連する変更を調整できます。
+
+### Web層
+
+新しいエンドポイント・コントローラーを作成します。
+```
+@RestController
+@RequestMapping("/api/extended/foo")
+public class ExtendedFooController {
+    private final ExtendedFooService extendedFooService;
+
+    public ExtendedFooController(ExtendedFooService extendedFooService) {
+        this.extendedFooService = extendedFooService;
+    }
+
+    // New endpoints
+    @GetMapping("/new-feature")
+    public ResponseEntity<?> newFeature() {
+        // Implementation
+    }
+}
+```
+
+アントニオ・ゴンサルベス氏による歴史はこちら: https://www.youtube.com/watch?v=9WVpwIUEty0
+詳細なYouTubeビデオはこちら: https://youtu.be/aKvK-QpwaZA
+サイドバイサイドのサンプルを含むサンプルリポジトリはこちらで入手できます: https://github.com/OsgiliathEnterprise/jhipster-side-by-side-sample

@@ -34,7 +34,7 @@ npm start
 ### ビルド
 
 ```
-npm run build
+npm run build -- --locale en
 ```
 
 このコマンドは、`build`ディレクトリに静的コンテンツを生成し、任意の静的コンテンツホスティングサービスで提供できます。
