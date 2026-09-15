@@ -1,0 +1,122 @@
+---
+title: リリース9.0.0
+slug: 2026年3月10日 JHipster 9.0.0 リリース
+displayed_sidebar: ドキュメントサイドバー
+sidebar_class_name: 隠れた
+---
+
+# JHipster v9.0.0 リリース
+
+**JHipster 9.0.0** の公式リリースを発表できることを大変嬉しく思います！🎉
+
+これは、ベータリリースからのすべての変更に加え、[9.0.0-beta.3](/2026/02/04/jhipster-release-9.0.0-beta.3.html) リリース以降の [442件のクローズされたイシューとプルリクエスト](https://github.com/jhipster/generator-jhipster/issues?q=is:closed+milestone:9.0.0) を含むメジャーリリースです。
+
+## 新機能
+
+### :leaves: Spring Boot
+
+- **Spring Boot 4**: Spring Boot 4.0.3 にアップグレード
+- **Spring Security**: EnableWebSocketSecurity に移行
+- **GraalVM サポート**: spring-boot:graalvm ジェネレーターを追加
+- **ビルドツール**: Node 22、Gradle 9.4.0、Maven 3.9.13 に更新
+
+### :computer: フロントエンド
+
+- **React 19**: React 19 にアップグレードし、reactstrap を react-bootstrap に置き換え
+- **Angular 21**: 主な更新点:
+  - パフォーマンス向上のため、デフォルトで Zoneless に (zone.js は不要に)
+  - Jest の代替として Vitest をサポート
+  - signals および httpResource ベースのサービスへの移行を継続
+- **Vue**: Bootstrap 5 サポートのため Bootstrap Vue Next に移行
+- **ESLint 10**: Angular および Vue 向けにアップグレード
+
+### :warning: 破壊的変更
+
+- **Java 21 が必須**: Java 17 のサポートを終了 (Java 25 をサポート)
+- **Node 22 が必須**: Node 20 のサポートを終了、ネイティブ TypeScript サポートが必須に
+
+### :paw_prints: JDL/内部/ブループリント
+
+- **完全なTypeScriptによる再設計**: ジェネレーターのコードベースは、型改善とモジュラーアーキテクチャによりTypeScriptで完全に書き直されました
+- yeoman-generator v8 に更新
+
+## クローズされたチケットとマージされたプルリクエスト
+
+いつものように、**[すべてのクローズされたチケットとマージされたプルリクエストはこちらで確認できます](https://github.com/jhipster/generator-jhipster/issues?q=is:closed+milestone:9.0.0)**。
+
+## インストール方法
+
+NPM を使用して JHipster v9.0.0 をインストールするには:
+
+```
+npm install -g generator-jhipster
+```
+
+JHipster Docker イメージも利用可能です。これはソースコードから自動的にビルドされます。
+
+- [Docker Hub](https://hub.docker.com/r/jhipster/jhipster)
+- [JHipster Online](https://start.jhipster.tech)
+
+## アップグレード方法
+
+**自動アップグレード**
+
+自動アップグレードには、既存のアプリケーションで [JHipster アップグレードサブジェネレーター](/upgrading-an-application/) を使用します:
+
+JHipster のバージョンをアップグレードします:
+
+```
+npm update -g generator-jhipster
+```
+
+そして、アップグレードサブジェネレーターを実行します:
+
+```
+jhipster upgrade
+```
+
+より高度なアップグレード機能には、[migrate ブループリント](https://github.com/jhipster/generator-jhipster-migrate) も使用できます。
+
+```
+npm i -g generator-jhipster-migrate
+jhipster-migrate
+```
+
+**手動アップグレード**
+
+手動アップグレードの場合、まず JHipster のバージョンを以下でアップグレードします:
+
+```
+npm update -g generator-jhipster
+```
+
+既存のプロジェクトがある場合、それは生成されたJHipsterのバージョンを使い続けます。
+プロジェクトをアップグレードするには、まず `node_modules` フォルダーを削除し、その後以下を実行する必要があります:
+
+```
+jhipster
+```
+
+また、以下を実行することで、プロジェクトとそのすべてのエンティティを更新できます:
+
+```
+jhipster --with-entities
+```
+
+エンティティサブジェネレーターを再度実行することで、エンティティを一つずつ更新することもできます。例えば、エンティティ名が _Foo_ の場合:
+
+```
+jhipster entity Foo --single-entity
+```
+
+## ヘルプとバグ
+
+このリリースで何か問題を見つけた場合は、遠慮なく以下を行ってください:
+
+- [バグトラッカー](https://github.com/jhipster/generator-jhipster/issues?state=open) にバグを追加する
+- [Stack Overflow](http://stackoverflow.com/tags/jhipster/info) で質問を投稿する
+- [GitHub](https://github.com/jhipster/generator-jhipster/discussions) で新しいディスカッションを作成する
+
+もし、お持ちの問題が緊急のバグまたはセキュリティ問題である場合は、以下を行ってください:
+
+- Twitterで[@jhipster](https://twitter.com/jhipster)に連絡する
