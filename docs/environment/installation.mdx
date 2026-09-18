@@ -29,7 +29,7 @@ JHipsterでは、4つの方法を用意しています。迷ったら、2番目�
 
 ### クイックセットアップ
 
-1. Java 17または21 LTSをインストールします。オープンソースで無償のため、[Eclipse Temurin builds](https://adoptium.net/temurin/releases/?version=21)を使用することをお勧めします。
+1. Java 21 LTS以降をインストールしてください。[Eclipse Temurinビルド](https://adoptium.net/temurin/releases/?version=21)のご利用をお勧めします。これらはオープンソースで無料です。
 2. [Node.jsのウェブサイト](http://nodejs.org/)からNode.jsをインストールします（LTSの64ビット版を使用してください、LTS以外のバージョンはサポートされていません）。
 3. `npm install -g generator-jhipster`でJHipsterをインストールします。
 4. （オプション）モジュールやブループリントを使用したい場合（例えば[JHipster Marketplace](/modules/marketplace/#/list)から取得）`npm install -g yo`で[Yeoman](https://yeoman.io/) をインストールします。
@@ -208,4 +208,14 @@ jhipster
         <li>dockerデーモンでDockerイメージを構築すること（Mavenゴール：<code>jib:dockerBuild</code>またはGradleタスク：<code>jibDockerBuild</code>）</li>
     </ul>
     ただし、<a href="https://github.com/GoogleContainerTools/jib">jib</a>のデーモンレスのモードを使えば、dockerデーモンにアクセスしなくてもdockerイメージを構築してレジストリにプッシュできます（Mavenゴール：<code>jib:build</code>またはGradleタスク：<code>jibBuild</code>)。 一方、アプリをビルドする前提条件としてdockerレジストリへ認証情報をセットアップする必要があります。詳しくは<a href="https://github.com/GoogleContainerTools/jib/tree/master/jib-maven-plugin#configuration">Jib プラグイン設定ドキュメント</a>を参照してください。
+
+
+
+
+
+
+
+
+
+
 
