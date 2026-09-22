@@ -1,0 +1,106 @@
+---
+title: リリース 9.3.0
+slug: 2026年8月30日のJHipsterリリース9.3.0の記事
+displayed_sidebar: ドキュメントサイドバー
+sidebar_class_name: 隠れた
+---
+
+# JHipster v9.3.0 リリース
+
+これはJHipster v9のマイナーリリースです。
+
+[9.2.0リリース](/2026/07/10/jhipster-release-9.2.0.html)以降、[669件のクローズされたイシューとプルリクエスト](https://github.com/jhipster/generator-jhipster/issues?q=is:closed+milestone:9.3.0)が含まれています。
+
+大きなニュースとして、JHipsterはSpring Boot 4に完全に移行しました！このリリースは、[9.0.0でのSpring Boot 4サポート](/2026/03/10/jhipster-release-9.0.0.html)から始まった移行を完了させました。Spring Boot 3のサポートは終了し、生成されるすべてのアプリケーションはSpring Boot 4.1で動作します。[Josh Longが7月にこの件について尋ねていた](https://x.com/starbuxman/status/2075612569147228409)ので、これが私たちの回答と考えてください。😄
+
+## 新機能
+
+* 生成されるアプリケーションはSpring Boot 4のみとなり、[Spring Boot 3のサポートは終了し](https://github.com/jhipster/generator-jhipster/pull/34625)、[Jackson 2のサポートも削除され](https://github.com/jhipster/generator-jhipster/pull/34617)、[Spring Boot 4.1.1にアップグレードされました](https://github.com/jhipster/generator-jhipster/pull/34614)
+* WebFlux ([R2DBC](https://github.com/jhipster/generator-jhipster/pull/31848)) を使用するリレーショナルデータベースと [Couchbase](https://github.com/jhipster/generator-jhipster/pull/34622) は、Spring Boot 3から4.1への移行を完了しました
+* 統合テストは、[リレーショナルデータベース](https://github.com/jhipster/generator-jhipster/pull/34593)、[Couchbase](https://github.com/jhipster/generator-jhipster/pull/34596)、[Elasticsearch](https://github.com/jhipster/generator-jhipster/pull/34594)、[Neo4j](https://github.com/jhipster/generator-jhipster/pull/32077)、[Cassandra](https://github.com/jhipster/generator-jhipster/pull/34616)、[MongoDB](https://github.com/jhipster/generator-jhipster/pull/31980)、および[Kafka](https://github.com/jhipster/generator-jhipster/pull/34601)向けにTestcontainers ServiceConnectionを使用するようになりました
+* [Angular 22にアップグレードされ](https://github.com/jhipster/generator-jhipster/pull/34057)、これによりデフォルトで[OnPush変更検知](https://github.com/jhipster/generator-jhipster/pull/34190)と[strictTemplates](https://github.com/jhipster/generator-jhipster/pull/34233)が有効になり、webpackモジュールフェデレーションが@module-federation/enhancedに移行され、[シグナルへの移行](https://github.com/jhipster/generator-jhipster/pull/32447)が継続されます
+* Angularのモノリスとゲートウェイは、[モジュールフェデレーション](https://github.com/jhipster/generator-jhipster/pull/34681)を介してエンティティをロードするようになりました
+* [Reactアプリはwebpackの代わりにViteでビルドされるようになりました](https://github.com/jhipster/generator-jhipster/pull/34656)
+* [ディープなクライアントサイドルートでの静的リソースのロード](https://github.com/jhipster/generator-jhipster/pull/31667)、[websocketポーリングによって乗っ取られるOAuth2ログイン後のリダイレクト](https://github.com/jhipster/generator-jhipster/pull/34131)、および[ReactとVueにおける埋め込みの多対一関係](https://github.com/jhipster/generator-jhipster/pull/34621)が修正されました
+* ビルドツールが[Node.js 24.20.0](https://github.com/jhipster/generator-jhipster/pull/34678)、[npm 12](https://github.com/jhipster/generator-jhipster/pull/34076)、および[Gradle 9.7.1](https://github.com/jhipster/generator-jhipster/pull/34597)にアップグレードされました
+
+## クローズされたチケットとマージされたプルリクエスト
+
+いつものように、**[クローズされたすべてのチケットとマージされたプルリクエストはこちらで確認できます](https://github.com/jhipster/generator-jhipster/issues?q=is:closed+milestone:9.3.0)**。
+
+## インストール方法
+
+NPMを使用してJHipster v9.3.0をインストールするには：
+
+```
+npm install -g generator-jhipster@9.3.0
+```
+
+JHipster Dockerイメージを使用しても利用可能です。これはソースコードから自動的にビルドされます。
+
+- [Docker Hub](https://hub.docker.com/r/jhipster/jhipster)
+- [JHipster Online](https://start.jhipster.tech)
+
+## アップグレード方法
+
+**自動アップグレード**
+
+自動アップグレードには、既存のアプリケーションで[JHipsterアップグレードサブジェネレーター](/upgrading-an-application/)を使用します：
+
+JHipsterのバージョンをアップグレードします：
+
+```
+npm update -g generator-jhipster
+```
+
+そして、アップグレードサブジェネレーターを実行します：
+
+```
+jhipster upgrade
+```
+
+より高度なアップグレード機能には、[migrate blueprint](https://github.com/jhipster/generator-jhipster-migrate)も使用できます。
+
+```
+npm i -g generator-jhipster-migrate
+jhipster-migrate
+```
+
+**手動アップグレード**
+
+手動でアップグレードするには、まずJHipsterのバージョンを次のようにアップグレードします：
+
+```
+npm update -g generator-jhipster
+```
+
+既存のプロジェクトがある場合、それは生成されたJHipsterのバージョンを使い続けます。
+プロジェクトをアップグレードするには、まず`node_modules`フォルダを削除してから、次を実行する必要があります：
+
+```
+jhipster
+```
+
+プロジェクトとそのすべてのエンティティを更新するには、次を実行することもできます：
+
+```
+jhipster --with-entities
+```
+
+エンティティサブジェネレーターを再度実行することで、エンティティを1つずつ更新することもできます。例えば、エンティティ名が_Foo_の場合：
+
+```
+jhipster entity Foo --single-entity
+```
+
+## ヘルプとバグ
+
+このリリースで何か問題を見つけた場合は、遠慮なく以下を行ってください：
+
+- [バグトラッカー](https://github.com/jhipster/generator-jhipster/issues?state=open)にバグを追加する
+- [Stack Overflow](http://stackoverflow.com/tags/jhipster/info)で質問を投稿する
+- [GitHub](https://github.com/jhipster/generator-jhipster/discussions)で新しいディスカッションを作成する
+
+抱えている問題が緊急のバグまたはセキュリティ問題である場合は、以下を行ってください：
+
+- Twitterで[@jhipster](https://twitter.com/jhipster)に連絡する
