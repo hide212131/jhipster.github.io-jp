@@ -73,14 +73,14 @@ __このTipは[@deepu105](https://github.com/deepu105)から提出されまし�
 ```js
     'use strict';
 
-    angular.module('yourApp')
-        .controller('BootswatchController', function ($scope, BootSwatchService) {
-            /*Get the list of availabel bootswatch themes*/
-            BootSwatchService.get().then(function(themes) {
-                $scope.themes = themes;
-                $scope.themes.unshift({name:'Default',css:''});
-            });
-        });
+angular.module('yourApp')
+  .controller('BootswatchController', function ($scope, BootSwatchService) {
+    /*Get the list of available bootswatch themes*/
+    BootSwatchService.get().then(function(themes) {
+      $scope.themes = themes;
+      $scope.themes.unshift({name:'Default',css:''});
+    });
+  });
 ```
 
 
