@@ -2,8 +2,11 @@
 title: セキュリティ
 slug: /security/
 last_update:
-  date: 2023-12-01T18:00:00-00:00
+date: 2026-05-26T00:00:00-00:00
 ---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
 # <i class="fa fa-lock"></i> アプリケーションをセキュアに
 
@@ -127,7 +130,10 @@ Keycloakはデフォルトで組み込みH2データベースを使用してい�
 - マイグレーション方法を`OVERWRITE_EXISTING`から`IGNORE_EXISTING`に変更します（コマンドセクション内）
 
 本番環境では、HTTPSを使用することがKeycloakによって要求されます。これを実現するには、HTTPSを管理するリバース・プロキシまたはロード・バランサを使用するなど、いくつかの方法があります。このトピックの詳細を知るには、[Keycloak HTTPSドキュメント](https://www.keycloak.org/docs/latest/server_installation/index.html#setting-up-https-ssl)を読むことをお薦めします。
+<Tabs lazy>
+<TabItem value="dashboard" label="Auth0ダッシュボードを使用して設定" default>
 
+#### Auth0管理ダッシュボードを使用して設定
 ### Auth0
 
 Keycloakの代わりに[Auth0](https://auth0.com/)を使用する場合は、次の設定手順に従います。
@@ -151,7 +157,80 @@ Keycloakの代わりに[Auth0](https://auth0.com/)を使用する場合は、次
       api.idToken.setCustomClaim('preferred_username', event.user.email);
       api.idToken.setCustomClaim(`${namespace}/roles`, event.authorization.roles);
       api.accessToken.setCustomClaim(`${namespace}/roles`, event.authorization.roles);
-    }
+</TabItem>
+<TabItem value="cli" label="Auth0 CLI を使用して設定">
+
+#### Auth0 CLI を使用して設定
+
+1. Auth0アプリケーションを作成し、.auth0.envを生成します
+    ```shell
+    auth0 quickstarts setup --app --type regular --framework jhipster
+    ```
+    出力: `CLIENT_ID` (例: `FCxxxxxxxxxxxxxxxxxxxxxxxxxxxxoz`) を控えてください。
+
+2. 作成したアプリケーションの接続を有効にします
+    ```shell
+    auth0 apps open <CLIENT_ID>
+    ```
+    - 開いたダッシュボードで、**Connections** に移動し、アプリケーションのデータベース認証接続 (例: `Username-Password-Authentication`) を有効にします。
+
+3. ロールを作成します (JHipsterは`ROLE_ADMIN`と`ROLE_USER`を想定しています)
+    ```shell
+    auth0 roles create --name ROLE_ADMIN --description 'role-admin'
+    auth0 roles create --name ROLE_USER --description 'role-user'
+    ```
+    出力: `ROLE_ID` (例: `rol_e5xxxxxxxxxxxxad`, `rol_LHxxxxxxxxxxxxBk`) を控えてください。
+
+4. 必要なメールアドレスとパスワードでデータベース接続にユーザーを作成します:
+    ```shell
+    auth0 users create --email <EMAIL> --password <PASSWORD> --connection-name <CONNECTION_NAME>
+    ```
+    例:
+    ```shell
+    auth0 users create --email 'jhipster@example.com' --password 'Example007!' --connection-name 'Username-Password-Authentication'
+    ```
+    出力: `USER_ID` (例: `auth0|69xxxxxxxxxxxxxxxxxxxx03`) を控えてください。
+
+5. **ロールID** を使用してユーザーにロールを割り当てます:
+    ```shell
+    auth0 users roles add <USER_ID> --roles <ROLE_ID1,ROLE_ID2>
+    ```
+    例:
+    ```shell
+    auth0 users roles add 'auth0|69xxxxxxxxxxxxxxxxxxxx03' --roles 'rol_e5xxxxxxxxxxxxad,rol_LHxxxxxxxxxxxxBk'
+    ```
+
+6. 「Add Roles」アクションを作成、デプロイし、ログインにバインドします
+  - トークンにロールを追加するポストログインアクションを作成します。
+      ```shell
+      AUTH0_ACTION_SCRIPT=$(cat <<'EOF'
+      exports.onExecutePostLogin = async (event, api) => {
+        const namespace = 'https://www.jhipster.tech';
+        if (event.authorization) {
+          api.idToken.setCustomClaim('preferred_username', event.user.email);
+          api.idToken.setCustomClaim(`${namespace}/roles`, event.authorization.roles);
+          api.accessToken.setCustomClaim(`${namespace}/roles`, event.authorization.roles);
+        }
+      };
+      EOF
+      )
+      ```
+      ```shell
+      auth0 actions create --name 'AddRoles' --trigger post-login --code '$AUTH0_ACTION_SCRIPT'
+      ```
+      出力: `ACTION_ID` (例: `2dxxxx54-5xx2-4xx2-9xxe-06xxxxxxxxc4`) を控えてください。
+
+  - アクションをデプロイします:
+      ```shell
+      auth0 actions deploy <ACTION_ID>
+      ```
+  - それを`post-login`トリガー (ログインフロー) にバインドします:
+      ```shell
+      auth0 api patch 'actions/triggers/post-login/bindings' --data '{"bindings":[{"ref":{"type":"action_id","value":"<ACTION_ID>"}}]}'
+      ```
+
+</TabItem>
+</Tabs>
   }
   ```
 - **Deploy**を選択し、`Add Roles`アクションをログインフローにドラッグします。
@@ -450,10 +529,3 @@ JHipsterはデフォルトではスタックトレースを含んでいません
 これを防ぐために、JHipsterは、実装の詳細の漏れを軽減するための専用のメカニズムを提供します。
 
 * 既知の例外をチェックし、メッセージを一般的なメッセージに置き換えます（例：`Unable to convert http message`）。
-* メッセージに潜在的なパッケージ名（例：`java.`または`.org`）が含まれているかどうかをチェックし、メッセージを一般的なもの（例：`Unexpected runtime exception`）で置き換えます。
-
-ログには依然として詳細な例外が含まれているため、外部からの攻撃者がAPIを悪用して貴重な技術的詳細を得ることができない間に、
-実際の問題を特定できます（訳注：miusing→misusing）。
-
-ロジックを変更する必要がある場合（メッセージに技術的な詳細が含まれていても検出されなかった場合など）は、
-必要なロジックを`ExceptionTranslator.java`の`prepare`メソッドに追加することで変更できます。

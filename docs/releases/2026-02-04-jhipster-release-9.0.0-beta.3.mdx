@@ -1,0 +1,116 @@
+---
+title: リリース 9.0.0 ベータ3
+slug: 2026年2月4日のJHipster 9.0.0ベータ3リリース
+displayed_sidebar: ドキュメントサイドバー
+sidebar_class_name: 隠された
+---
+
+# JHipster リリース v9.0.0-beta.3
+
+`9.0.0-beta.3` リリースが利用可能になりました！このリリースには、[9.0.0-beta.2](https://github.com/jhipster/generator-jhipster/releases/tag/v9.0.0-beta.2) 以降の [65件のクローズされたイシューとプルリクエスト](https://github.com/jhipster/generator-jhipster/issues?q=is:closed+milestone:9.0.0-beta.3) が含まれています。
+
+:::warning 以前のベータリリースは破損していました
+
+- **9.0.0-beta.1** は、グローバルにインストールされた際にCLIが `Cannot find package 'yeoman-test'` で失敗したため非推奨となりました ([#32114](https://github.com/jhipster/generator-jhipster/issues/32114))
+- **9.0.0-beta.2** は、JDLファイルを解析する際に `Maximum call stack size exceeded` エラーを引き起こしたため非推奨となりました ([#32116](https://github.com/jhipster/generator-jhipster/issues/32116))
+
+代わりにこの `9.0.0-beta.3` リリースを使用してください。
+
+:::
+
+## beta.3での修正
+
+- **chevrotainの依存関係を修正** ([#32130](https://github.com/jhipster/generator-jhipster/pull/32130)) - beta.2に影響を与えたJDLファイル解析時の `Maximum call stack size exceeded` エラーを解決します
+- **yeoman-testのパッケージングを修正** ([#32122](https://github.com/jhipster/generator-jhipster/pull/32122)) - beta.1に影響を与えた `Cannot find package 'yeoman-test'` エラーを解決します
+
+## 新機能
+
+### Spring Boot
+- **Spring Boot 4**: Spring Boot 4.0.2にアップグレードしました ([#32035](https://github.com/jhipster/generator-jhipster/pull/32035))
+- EnableWebSocketSecurityに移行しました ([#31539](https://github.com/jhipster/generator-jhipster/pull/31539))
+
+### Angular
+- **Angular 21**: Angular v21に更新し、Jestのサポートを終了しました ([#31458](https://github.com/jhipster/generator-jhipster/pull/31458))
+- より多くのフィールドをシグナルに変換しました ([#31727](https://github.com/jhipster/generator-jhipster/pull/31727), [#31718](https://github.com/jhipster/generator-jhipster/pull/31718))
+- スタンドアロンコンポーネントを優先してSharedModule/CommonModuleを削除しました ([#31623](https://github.com/jhipster/generator-jhipster/pull/31623), [#31695](https://github.com/jhipster/generator-jhipster/pull/31695))
+
+### プラットフォームとツールチェーンの更新
+- **Java 17のサポートを終了**: Java 21が最低必須バージョンになりました ([#31903](https://github.com/jhipster/generator-jhipster/pull/31903))
+- **Node 20のサポートを終了**: ネイティブTypeScriptサポートを備えたNode 22+が必須になりました ([#31845](https://github.com/jhipster/generator-jhipster/pull/31845))
+- Node.jsを24.12.0にアップグレードしました ([#31648](https://github.com/jhipster/generator-jhipster/pull/31648))
+- Gradleを9.3.1にアップグレードしました ([#32121](https://github.com/jhipster/generator-jhipster/pull/32121))
+
+## クローズされたチケットとマージされたプルリクエスト
+
+詳細については、GitHubの[9.0.0-beta.3](https://github.com/jhipster/generator-jhipster/releases/tag/v9.0.0-beta.3) リリースノートを参照してください。
+
+## インストール方法
+
+JHipster v9.0.0-beta.3をインストールするには：
+
+```
+npm install -g generator-jhipster@9.0.0-beta.3
+```
+
+JHipster Dockerイメージを使用しても利用可能です。これはソースコードから自動的にビルドされます。
+
+- [Docker Hub](https://hub.docker.com/r/jhipster/jhipster)
+- [JHipster Online](https://start.jhipster.tech)
+
+## アップグレード方法
+
+**自動アップグレード**
+
+自動アップグレードには、既存のアプリケーションで[JHipsterアップグレードサブジェネレーター](/upgrading-an-application/)を使用します。
+
+JHipsterのバージョンをアップグレードします。
+
+```
+npm update -g generator-jhipster
+```
+
+そして、アップグレードサブジェネレーターを実行します。
+
+```
+jhipster upgrade
+```
+
+より高度なアップグレード機能には、[migrate blueprint](https://github.com/jhipster/generator-jhipster-migrate)も使用できます。
+
+```
+npm i -g generator-jhipster-migrate
+jhipster-migrate
+```
+
+**手動アップグレード**
+
+手動アップグレードの場合、まずJHipsterのバージョンを以下でアップグレードします。
+
+```
+npm update -g generator-jhipster
+```
+
+既存のプロジェクトがある場合、それは生成されたJHipsterのバージョンを使い続けます。
+プロジェクトをアップグレードするには、まず `node_modules` フォルダーを削除し、その後以下を実行する必要があります。
+
+```
+jhipster
+```
+
+エンティティサブジェネレーターを再度実行することで、エンティティを一つずつ更新することもできます。例えば、エンティティ名が _Foo_ の場合、以下を使用します。
+
+```
+jhipster entity Foo --single-entity
+```
+
+## ヘルプとバグ
+
+このリリースで何か問題を見つけた場合は、遠慮なく以下を行ってください。
+
+- [バグトラッカー](https://github.com/jhipster/generator-jhipster/issues?state=open)にバグを追加する
+- [Stack Overflow](http://stackoverflow.com/tags/jhipster/info)で質問を投稿する
+- [GitHub](https://github.com/jhipster/generator-jhipster/discussions)で新しいディスカッションを作成する
+
+お持ちの問題が緊急のバグまたはセキュリティ問題である場合は、以下を行ってください。
+
+- Twitterで[@jhipster](https://twitter.com/jhipster)に連絡する
