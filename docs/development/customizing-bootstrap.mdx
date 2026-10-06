@@ -2,7 +2,7 @@
 title: Bootstrapのカスタマイズ
 slug: /customizing-bootstrap/
 last_update:
-  date: 2024-09-10T11:30:00-00:00
+date: 2026-09-27T00:00:00-00:00
 ---
 
 ## 基本的なカスタマイズ
@@ -11,9 +11,9 @@ last_update:
 :::
 
 _プロの技:`npm start`を実行して、変更のフィードバックをすぐに得ることを忘れないでください!_
-
+グローバルSassファイルでスタイルを上書きする: AngularとVueの場合は`src/main/webapp/content/scss/global.scss`、またはReactの場合は`src/main/webapp/app/app.scss`。
 BootstrapもSassで記述されているため、Sassを使用することは、プレーンなCSSよりも簡単で、簡潔で、強力です。Bootstrapの[テーマに関する公式ドキュメント](https://getbootstrap.com/docs/5.3/customize/sass/)を参照してください。
-
+BootstrapはSassで書かれています。Bootstrapの[公式テーマ設定ドキュメント](https://getbootstrap.com/docs/5.3/customize/sass/)を参照してください。
 自分の`scss`ファイルでBootstrapの[パーシャル](https://sass-lang.com/guide/#partials)を使用したい場合は、以下のように`scss`ファイルの先頭にインポートしてください。
 たとえば、border-radius mixinを使用するには、次のように指定します。
 
@@ -25,5 +25,6 @@ BootstrapもSassで記述されているため、Sassを使用することは、
 メインのSassファイルではなく、部分的なファイルのみをインポートするようにしてください。そうしないと、重複したCSSが生成され、問題が発生する可能性があります。
 
 色やborder-radiusなどのデフォルトのブートストラップ設定を変更するには、部分ファイル`src/main/webapp/content/scss/_bootstrap-variables.scss`でプロパティの値を追加または変更します。
-
+デフォルトのBootstrap設定（色、ボーダーラディウスなど）を変更するには、部分ファイル src/main/webapp/content/scss/_bootstrap-variables.scss (AngularおよびVue) または src/main/webapp/app/_bootstrap-variables.scss (React) 内のプロパティの値を追加または変更します。
 Bootstrapの[_variables.scss](https://github.com/twbs/bootstrap/blob/main/scss/_variables.scss)で定義されているすべての値は、ここで上書きできます。
+

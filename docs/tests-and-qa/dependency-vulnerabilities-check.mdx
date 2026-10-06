@@ -1,0 +1,95 @@
+---
+title: 依存関係脆弱性チェック
+slug: 依存関係の脆弱性チェック
+last_update:
+  date: 2018年9月15日19時00分
+---
+
+## プロジェクトの依存関係を確認すべき理由
+
+JHipsterは多くのテクノロジーを使用しており、プロジェクトはそれらの選択に非常に注意を払っています。しかし、プロジェクトが多くの依存関係の中に存在する脆弱性を見落としていた可能性や、あなたが追加または更新した依存関係が新たな脆弱性を引き起こした可能性もあります。
+
+[OWASP Top 10 Most Critical Web Application Security Risks](https://www.owasp.org/index.php/Category:OWASP_Top_Ten_Project)によると、既知の脆弱性を持つコンポーネント（すなわち依存関係）の使用は9位にランクされており、悪意のある、またはそうでないサードパーティの依存関係によって引き起こされたセキュリティ侵害の既知の事例は数多く存在します。
+
+
+## JHipsterがデフォルトで依存関係チェックを提供しない理由
+
+JHipsterのビルドでデフォルトで依存関係チェックを提案することは、何度か議論されてきました（[#6329](https://github.com/jhipster/generator-jhipster/issues/6329)、[#8191](https://github.com/jhipster/generator-jhipster/issues/8191)）。要約すると、現実的なレポート（誤検知の除去）を作成することは複雑であり、コンテキストに依存します（セキュリティは常に実際の危険性/重要性とそれを防ぐための労力とのトレードオフです）。
+
+しかし、JHipsterを本番環境で使用している場合は、[Dependabot](https://dependabot.com/)や[Snyk](https://snyk.io/)のような依存関係分析ツールの使用を強くお勧めします。
+
+
+## JHipsterの依存関係に脆弱性を検出した場合の対処法
+
+JHipsterの依存関係に脆弱性を見つけた場合は、その脆弱性について既存の[issue](https://github.com/jhipster/generator-jhipster/issues)がすでに開かれていないか確認してください。
+
+何も言及されていない場合は、セキュリティ脆弱性レポートを非公開で送信してください。送信方法については、当社の[セキュリティポリシー](https://github.com/jhipster/generator-jhipster/security/policy)をお読みください。エクスプロイトの再現手順、セキュリティレポート、ブログ記事などを含めてください。
+
+JHipsterチームは、高品質でエンタープライズ対応の安全な開発スタックを提供することに尽力しており、この問題が私たちにとって最優先事項となることをご安心ください。
+
+
+## JHipsterプロジェクトの依存関係を確認する方法
+
+### サーバー側の確認
+
+Javaの依存関係に既知のCommon Vulnerabilities and Exposures（通称CVE）があるかどうかを確認するには、最新のリストを維持している[NIST National Vulnerability Database](https://nvd.nist.gov/)にアクセスしてください。
+
+OWASPプロジェクトは、依存関係チェーン全体を自動的にチェックし、レポートを生成し、さらにはビルドをブロックする（継続的インテグレーションを行う際には非常に攻撃的になる可能性があるため、推奨されません）MavenおよびGradleプラグインを提供しています。
+
+[依存関係チェックレポートの読み方を説明するドキュメントはこちらです](https://jeremylong.github.io/DependencyCheck/general/thereport.html)。
+
+#### Mavenの使用
+
+[OWASP Maven Dependency Checkプラグインのドキュメント](https://jeremylong.github.io/DependencyCheck/dependency-check-maven/index.html)を参照してください。
+
+owasp dependency-checkプラグインを追加します。
+
+```xml
+<build>
+...
+  <plugins>
+  ...
+  <plugin>
+      <groupId>org.owasp</groupId>
+      <artifactId>dependency-check-maven</artifactId>
+      <version>5.2.4</version>
+      <executions>
+        <execution>
+          <goals>
+            <goal>check</goal>
+          </goals>
+        </execution>
+      </executions>
+    </plugin>
+  ..
+  </plugins>
+  ...
+</build>
+```
+`./mvnw verify`を実行すると、`target`ディレクトリの下に依存関係チェックレポートが生成されます。
+
+#### Gradleの使用
+
+[OWASP Gradle Dependency Checkプラグインのドキュメント](https://jeremylong.github.io/DependencyCheck/dependency-check-gradle/index.html)を参照してください。
+
+`build.gradle`ファイルを更新して、[OWASP dependency-check-gradleプラグイン](https://plugins.gradle.org/plugin/org.owasp.dependencycheck)を適用します。
+
+```gradle
+plugins {
+  // Add the plugin in the existing plugins block
+  id "org.owasp.dependencycheck" version "5.2.4"
+
+}
+
+if(project.hasProperty('strict-security')) {
+  check.dependsOn dependencyCheckAnalyze
+}
+```
+
+`./gradlew dependencyCheckAnalyze`を実行すると、`build/report`ディレクトリ内に依存関係チェックレポートが生成されます。
+
+継続的インテグレーションビルドを依存関係チェックで更新するには、`./gradlew check -Pstrict-security`を実行します。
+
+### クライアント側の確認
+
+バージョン6以降、NPMは各依存関係のインストール時にデフォルトでセキュリティ監査を含んでいます。詳細については、[About security audits](https://docs.npmjs.com/getting-started/running-a-security-audit)ページを確認してください。
