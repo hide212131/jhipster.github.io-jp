@@ -272,8 +272,13 @@ const sidebars: SidebarsConfig = {
         { type: 'doc', label: 'コード品質', id: 'tests-and-qa/code-quality' },
         {
           type: 'doc',
+<<<<<<< HEAD
           label: '依存関係の脆弱性チェック',
           id: 'tests-and-qa/dependency-vulnerabities-check',
+=======
+          label: 'Dependency Vulnerabilities Check',
+          id: 'tests-and-qa/dependency-vulnerabilities-check',
+>>>>>>> 5ba179bb56122727d613f6448844d22505ddaf26
         },
         {
           type: 'category',
@@ -430,7 +435,6 @@ const sidebars: SidebarsConfig = {
           href: 'https://start.jhipster.tech/jdl-studio/',
         },
         { type: 'doc', label: 'JHipster IDE', id: 'tools/jhipster-ide' },
-        { type: 'doc', label: 'JHipster-UML', id: 'tools/jhipster-uml' },
       ],
     },
     {
@@ -536,12 +540,16 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'doc',
+<<<<<<< HEAD
           label: 'リモートシェルのREPL (非推奨)',
           id: 'tips/tip_repl_with_the_remote_shell',
         },
         {
           type: 'doc',
           label: 'KubernetesとGoogle Cloud SQL',
+=======
+          label: 'Kubernetes and Google Cloud SQL',
+>>>>>>> 5ba179bb56122727d613f6448844d22505ddaf26
           id: 'tips/tip_kubernetes_and_google_cloud_sql',
         },
         {

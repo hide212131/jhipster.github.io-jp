@@ -40,7 +40,10 @@ const redirectsPlugin = [
         from: '/installing_new_languages.html',
         to: '/installing-new-languages/',
       },
-      { from: '/jhipster_uml.html', to: '/jhipster-uml/' },
+      {
+        from: ['/jhipster_uml.html', '/jhipster-uml/'],
+        to: '/jdl/intro',
+      },
       {
         from: '/managing_relationships.html',
         to: '/managing-relationships/',
@@ -57,7 +60,11 @@ const redirectsPlugin = [
       },
       { from: '/setting_up_ci.html', to: '/setting-up-ci/' },
       { from: '/tech_stack.html', to: '/tech-stack/' },
-      { from: '/using_angularjs.html', to: '/using-angularjs/' },
+      {
+        from: ['/using_angularjs.html', '/using-angularjs/'],
+        to: '/using-angular/',
+      },
+      { from: '/using-uaa/', to: '/security/' },
       { from: '/using_cassandra.html', to: '/using-cassandra/' },
       { from: '/using_couchbase.html', to: '/using-couchbase/' },
       { from: '/using_dtos.html', to: '/using-dtos/' },
@@ -198,6 +205,18 @@ const redirectsPlugin = [
         from: '/showcase.html',
         to: '/showcase/',
       },
+      {
+        from: [
+          '/tips/017_tip_repl_with_the_remote_shell.html',
+          '/tips/021_tip_prevent_error_and_hanging_on_windows_when_using_gradle.html',
+        ],
+        to: '/tips/',
+      },
+      {
+        from: '/tips/006_tips_enable_cross_origin_requests.html',
+        to: '/separating-front-end-and-api/',
+      },
+      { from: '/tips/014_tip_using_mariadb.html', to: '/development/' },
       {
         from: '/team.html',
         to: '/team/',
