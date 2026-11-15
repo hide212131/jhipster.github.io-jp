@@ -2,7 +2,7 @@
 title: JHipsterドメイン言語(JDL) -  列挙型型
 slug: /jdl/enums
 last_update:
-  date: 2019-10-27T12:00:00-00:00
+date: 2026-09-27T12:00:00-00:00
 ---
 
 # <i class="fa fa-star"></i> JHipsterドメイン言語(JDL) - 列挙型
@@ -15,8 +15,8 @@ last_update:
    1. [値](#値)
    1. [コメント](#コメント)
 
----
-
+  - 列挙エントリのキーは必須です
+    - そして、それらは大文字で始まる必要があります（例：`FRANCE` や `France`）
 ### 構文
 
 列挙型の宣言は次のように行われます。
@@ -36,7 +36,11 @@ enum <enum name> {
 ### 例
 
 
-#### 基本の例
+```markdown
+enum Country {
+  BELGIUM,
+  FRANCE,
+  ITALY
 
 ```jdl
 enum Country {
@@ -74,20 +78,3 @@ enum Country {
 ---
 
 #### コメント
-
-リレーションシップ、エンティティ、フィールドと同じように、同じルールでenumにコメントを付けることができます。
-
-コメントは、後でJHipsterによってJavadocコメントとして追加されます。JDLには独自のコメントがあります。
-  - // 無視されるコメント
-  - /** 無視されるコメントではありません */
-
-したがって、`//`で始まるものはすべてJDLの内部コメントと見なされ、Javadocとしてカウントされません。
-`#`で始まるJDL Studioディレクティブは、構文解析中に無視されることに注意してください。
-
-```jdl
-/** This comment will be taken into account */
-enum Country {
-  // But not this one!
-  FRANCE
-}
-```
