@@ -200,6 +200,18 @@ JHipsterには、いくつかのデフォルト・ユーザーが生成されて
 ### HTTPSサポート
 
 HTTPSは、JHipsterアプリケーションで直接設定することも、特定のフロントエンドプロキシを使用して設定することもできます。
+### JDKを最新の状態に保つ
+
+ベンダーの最新のセキュリティアップデートが適用されたJDKでアプリケーションを実行してください。
+
+2026年11月17日のOpenJDKアップデートは、AVX-512を搭載したx86-64プロセッサにおけるJVMのBase64デコードの欠陥である[Java4Shell](https://calif.io/java4shell/) ([CVE-2026-114938](https://openjdk.org/groups/vulnerability/advisories/2026-11-17))を修正します。アドバイザリでは、25.0.5、21.0.13、17.0.21およびそれ以前のバージョンが影響を受けるとされています。アップデートできるまでは、他のオプションの後に`-XX:-UseBASE64Intrinsics`を付けてJVMを起動してください。これによりBase64の速度が低下するだけです。
+
+```bash
+java $JAVA_OPTS -XX:-UseBASE64Intrinsics -jar jhipster-0.0.1-SNAPSHOT.jar
+```
+
+[generator-jhipster#36350](https://github.com/jhipster/generator-jhipster/pull/36350)以降で生成されたアプリケーションのDockerイメージおよびHerokuの`Procfile`では、このオプションが設定されます。既存のデプロイメントは、再ビルドして再デプロイするか、`JAVA_OPTS`にオプションを追加して再デプロイする必要があります。
+
 
 #### JHipsterでのHTTPS設定
 
@@ -298,3 +310,12 @@ JHipsterは、[Micrometer](https://micrometer.io/)による完全なモニタリ
 開発環境では、MetricsデータはJMX経由で利用可能であり、JConsoleを起動するとアクセスできます。
 
 プロダクション環境では、アプリケーションがエンドポイント上のメトリックデータを公開することで、[Prometheusサーバ](https://prometheus.io/docs/introduction/overview/)が、設定に応じて定期的にスクレイピングできます。
+
+
+
+
+
+
+
+
+

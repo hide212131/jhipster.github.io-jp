@@ -2,7 +2,7 @@
 title: 新しい権限を作成する方法
 slug: /tips/025_tip_create_new_authority.html
 last_update:
-  date: 2018-10-05T18:20:00-00:00
+date: 2026-09-27T00:00:00-00:00
 ---
 
 __このTipは[@Tonterias](https://github.com/Tonterias)により提出されました__
@@ -22,40 +22,37 @@ public final class AuthoritiesConstants {
 	public static final String USER = "ROLE_USER";
 
 	public static final String ANONYMOUS = "ROLE_ANONYMOUS";
-	
+
 	public static final String EXAMPLE_AUTHORITY = "ROLE_EXAMPLE_AUTHORITY";
 
-	private AuthoritiesConstants() {
-	}
+	private AuthoritiesConstants() {}
 }
 ```
 
-新しいロールを`authority.csv`に含めることを忘れないでください。
+あなたの新しい役割を、Liquibaseの`src/main/resources/config/liquibase/data/authority.csv`に忘れずに含めてください。
 
 ```csv
 name
 ROLE_ADMIN
 ROLE_USER
-ROLE_ANONYMOUS
 ROLE_EXAMPLE_AUTHORITY
 ```
 
 これで、SecurityConfiguration.javaで使用できるようになります。
 
 ```java
-@Override
-public void configure(HttpSecurity http) throws Exception {
-	// @formatter:off
+@Bean
+public SecurityFilterChain filterChain(HttpSecurity http) {
 	http
-		.csrf()
-		.disable()
 		...
+		.authorizeHttpRequests(authz ->
+			authz
+				...
+				.requestMatchers("/api/newresource/**").hasAuthority(AuthoritiesConstants.EXAMPLE_AUTHORITY)
+				.requestMatchers("/api/**").authenticated()
+				...
+		)
 	...
-	.and()
-		.authorizeRequests()
-		...
-		.antMatchers("/newresource/**").hasAuthority(AuthoritiesConstants.ROLE_EXAMPLE_AUTHORITY)
-...
 }
 ```
 
@@ -63,27 +60,27 @@ public void configure(HttpSecurity http) throws Exception {
 	
 ```java
 @DeleteMapping("/order-items/{id}")
-@Timed
 @PreAuthorize("hasAuthority('ROLE_EXAMPLE_AUTHORITY')")
 public ResponseEntity<Void> deleteOrderItem(@PathVariable Long id) {
 	...
 }
 ```
 
-Angular htmlファイルでは、次のようになります。`jhiHasAnyAuthority=[‘ROLE_ADMIN’, ‘ROLE_EXAMPLE_AUTHORITY’ ...]` 
+そして、AngularのHTMLファイルでは：`*jhiHasAnyAuthority="['ROLE_ADMIN', 'ROLE_EXAMPLE_AUTHORITY']"`
 
 And in your Angular routes:
 
 ```ts
+import { userRouteAccessService } from 'app/core/auth';
+
 export const messageRoute: Routes = [
 	{
 		path: 'message',
-		component: MessageComponent,
+loadComponent: () => import('./message').then(m => m.Message),
 		data: {
 			authorities: ['ROLE_EXAMPLE_AUTHORITY'],
-			pageTitle: 'Messages'
 		},
-		canActivate: [UserRouteAccessService]
+		canActivate: [userRouteAccessService]
 	}
 ];
 ```
